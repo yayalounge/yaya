@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>YÄYA Service</title>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -15,6 +15,7 @@
 <link rel="apple-touch-icon" href="icon-180.png">
 <link rel="icon" href="icon-180.png">
 <style>
+html,body{touch-action:manipulation;-webkit-text-size-adjust:100%;text-size-adjust:100%}
 /* App YÄYA pour l'iPad : affiche l'appli en plein écran. Le lien n'est pas écrit ici (page publique) :
    il est demandé une fois et gardé sur l'appareil. */
 :root{--bg:#161513;--app:#F4F2EC;--fg:#F2EFE7;--muted:#ABA598;--brass:#D9BB7C;--line:#39352D;--warn:#EE9A74}
@@ -28,7 +29,7 @@ body.on,body.on #app,body.on #ov{background:var(--app)}
 .setup img{width:96px;height:96px;border-radius:22px;box-shadow:0 18px 40px -20px rgba(0,0,0,.8)}
 .setup h1{font-weight:500;font-size:26px;margin:4px 0 0}
 .setup p{color:var(--muted);font-size:15px;line-height:1.45;max-width:440px;margin:0}
-.setup input{width:min(520px,100%);font:inherit;font-size:15px;padding:14px 16px;border-radius:14px;border:1px solid var(--line);background:#211F1B;color:var(--fg)}
+.setup input{width:min(520px,100%);font:inherit;font-size:16px;padding:14px 16px;border-radius:14px;border:1px solid var(--line);background:#211F1B;color:var(--fg)}
 .setup input:focus{outline:2px solid var(--brass);outline-offset:1px}
 .setup button{font:inherit;font-weight:700;font-size:16px;padding:15px 28px;border-radius:14px;border:0;background:var(--brass);color:#1B1A17;width:min(520px,100%)}
 .err{color:var(--warn);font-size:14px;min-height:20px}
@@ -42,6 +43,11 @@ body.on,body.on #app,body.on #ov{background:var(--app)}
 <div id="app"></div>
 <div class="off" id="off">Pas de réseau · l’appli reprend dès qu’il revient</div>
 <script>
+// v32 · appli figée : pas de zoom (pincement, double-tap) sur iPhone et iPad.
+(function () { var no = function (e) { e.preventDefault(); };
+  ['gesturestart', 'gesturechange', 'gestureend'].forEach(function (t) { document.addEventListener(t, no, { passive: false }); });
+  document.addEventListener('touchmove', function (e) { if (e.touches && e.touches.length > 1 || (e.scale && e.scale !== 1)) e.preventDefault(); }, { passive: false });
+})();
 var KEY = 'yaya-lien', app = document.getElementById('app');
 function get() { try { return localStorage.getItem(KEY) || ''; } catch (e) { return ''; } }
 function set(v) { try { localStorage.setItem(KEY, v); return true; } catch (e) { return false; } }

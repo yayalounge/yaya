@@ -30,6 +30,9 @@ html,body{margin:0;height:100%;background:var(--bg);color:var(--fg);font-family:
 .setup button{font:inherit;font-weight:700;font-size:16px;padding:15px 28px;border-radius:14px;border:0;background:var(--brass);color:#1B1A17;width:min(520px,100%)}
 .err{color:var(--warn);font-size:14px;min-height:20px}
 .small{font-size:13px;color:var(--muted)}
+#ov{position:fixed;inset:0;z-index:5;background:var(--bg);padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}
+#ov iframe{display:block;width:100%;height:100%;border:0;background:var(--bg)}
+#ovx{position:fixed;z-index:6;top:calc(10px + env(safe-area-inset-top));right:calc(12px + env(safe-area-inset-right));font:inherit;font-weight:700;font-size:14px;padding:9px 16px;border-radius:99px;border:1px solid var(--line);background:#211F1B;color:var(--fg)}
 .off{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(16px + env(safe-area-inset-bottom));background:#2B2619;color:var(--fg);border:1px solid var(--line);border-radius:99px;padding:8px 16px;font-size:13px;display:none}
 </style>
 </head>
@@ -70,9 +73,25 @@ if (lien && valid(lien)) open_(lien); else setup();
 function net() { document.getElementById('off').style.display = navigator.onLine ? 'none' : 'block'; }
 // Position pour la prise de service : l'appli (dans la page Google) la demande ici, à l'app YÄYA,
 // qui a sa propre autorisation de localisation. Seules les pages Google peuvent la demander.
+// Analyses : ouvertes par-dessus l'appli, dans l'app (pas de bandeau Google, retour en un geste).
+var ov = null, ovT = 0;
+function fromOv(w) { if (!ov) return false; var f = ov.querySelector('iframe').contentWindow; for (var i = 0; w && i < 6; i++) { if (w === f) return true; if (w === window) return false; try { w = w.parent; } catch (x) { return false; } } return false; }
+function closeOv() { clearTimeout(ovT); if (ov) { ov.remove(); ov = null; } var x = document.getElementById('ovx'); if (x) x.remove(); }
+function openOv(u) {
+  closeOv();
+  ov = document.createElement('div'); ov.id = 'ov';
+  var f = document.createElement('iframe'); f.src = u; f.title = 'YÄYA Analyses'; f.setAttribute('referrerpolicy', 'no-referrer');
+  ov.appendChild(f); document.body.appendChild(ov);
+  // Bouton de secours si la page des analyses ne se charge pas.
+  ovT = setTimeout(function () { if (!ov || document.getElementById('ovx')) return; var b = document.createElement('button'); b.id = 'ovx'; b.textContent = 'Fermer'; b.onclick = closeOv; document.body.appendChild(b); }, 8000);
+}
 window.addEventListener('message', function (e) {
   var m = e.data || {};
-  if (m.yaya !== 'pos?' || !e.source || !/^https:\/\/[\w.-]+\.(googleusercontent|google)\.com$/.test(e.origin)) return;
+  if (!e.source || !/^https:\/\/[\w.-]+\.(googleusercontent|google)\.com$/.test(e.origin)) return;
+  if (m.yaya === 'hello?') { e.source.postMessage({ yaya: 'hello', id: m.id, shell: 1 }, e.origin); if (fromOv(e.source)) { clearTimeout(ovT); var x = document.getElementById('ovx'); if (x) x.remove(); } return; }
+  if (m.yaya === 'open') { var u = String(m.url || ''); if (valid(u) && /[?&]app=analyses\b/.test(u)) openOv(u); return; }
+  if (m.yaya === 'close') { if (fromOv(e.source)) closeOv(); return; }
+  if (m.yaya !== 'pos?') return;
   var src = e.source, o = e.origin, id = m.id;
   src.postMessage({ yaya: 'pos', id: id, ack: true }, o);
   if (!navigator.geolocation) { src.postMessage({ yaya: 'pos', id: id, err: true, code: 2 }, o); return; }

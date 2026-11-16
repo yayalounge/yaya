@@ -1,6 +1,6 @@
 {
-  "name": "YÄYA Lounge",
-  "short_name": "YÄYA",
+  "name": "YÄYA Service",
+  "short_name": "Service",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

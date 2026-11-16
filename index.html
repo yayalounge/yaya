@@ -3,11 +3,11 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>YÄYA</title>
+<title>YÄYA Service</title>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="YÄYA">
+<meta name="apple-mobile-web-app-title" content="Service">
 <meta name="theme-color" content="#161513">
 <meta name="robots" content="noindex">
 <link rel="manifest" href="manifest.webmanifest">
@@ -43,8 +43,8 @@ function set(v) { try { localStorage.setItem(KEY, v); return true; } catch (e) {
 // Lien valide : celui de l'appli YÄYA (Google Apps Script), avec sa clé.
 function valid(v) { return /^https:\/\/script\.google\.com\/macros\/s\/[\w-]+\/exec\?.*\bk=[\w-]+/.test(v); }
 function setup(msg) {
-  app.innerHTML = '<div class="setup"><img src="icon-180.png" alt=""><h1>Bienvenue sur YÄYA</h1>' +
-    '<p>Colle une seule fois le lien de l’appli (celui que tu ouvres d’habitude dans Safari). Il reste sur cette tablette.</p>' +
+  app.innerHTML = '<div class="setup"><img src="icon-180.png" alt=""><h1>YÄYA Service</h1>' +
+    '<p>Colle une seule fois le <b>lien service</b> de la tablette (celui que l’équipe ouvre d’habitude dans Safari). Il reste sur cette tablette.</p>' +
     '<input id="lien" type="url" inputmode="url" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="https://script.google.com/macros/s/…/exec?k=…">' +
     '<div class="err" id="err">' + (msg || '') + '</div><button id="ok">Ouvrir l’appli</button>' +
     '<p class="small">Pour changer de lien plus tard : ouvre cette page avec «&nbsp;?changer&nbsp;» à la fin de l’adresse.</p></div>';

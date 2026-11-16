@@ -6,9 +6,10 @@
 <title>YÄYA Gérant</title>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Gérant">
-<meta name="theme-color" content="#161513">
+<meta name="theme-color" content="#F4F2EC" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#100F0D" media="(prefers-color-scheme: dark)">
 <meta name="robots" content="noindex">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="../icon-180.png">
@@ -16,11 +17,13 @@
 <style>
 /* App YÄYA pour l'iPad : affiche l'appli en plein écran. Le lien n'est pas écrit ici (page publique) :
    il est demandé une fois et gardé sur l'appareil. */
-:root{--bg:#161513;--fg:#F2EFE7;--muted:#ABA598;--brass:#D9BB7C;--line:#39352D;--warn:#EE9A74}
+:root{--bg:#161513;--app:#F4F2EC;--fg:#F2EFE7;--muted:#ABA598;--brass:#D9BB7C;--line:#39352D;--warn:#EE9A74}
 *{box-sizing:border-box}
 html,body{margin:0;height:100%;background:var(--bg);color:var(--fg);font-family:-apple-system,system-ui,"Segoe UI",sans-serif;-webkit-text-size-adjust:100%}
-#app{position:fixed;inset:0;padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);background:var(--bg)}
-#app iframe{display:block;width:100%;height:100%;border:0;background:var(--bg)}
+#app{position:fixed;inset:0;overflow:hidden;padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);background:var(--bg)}
+body.on,body.on #app,body.on #ov{background:var(--app)}
+@media (prefers-color-scheme: dark){:root{--app:#100F0D}}
+#app iframe,#ov iframe{display:block;width:100%;height:100%;border:0;background:transparent}
 .setup{min-height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;padding:32px max(24px,env(safe-area-inset-left));text-align:center}
 .setup img{width:96px;height:96px;border-radius:22px;box-shadow:0 18px 40px -20px rgba(0,0,0,.8)}
 .setup h1{font-weight:500;font-size:26px;margin:4px 0 0}
@@ -30,8 +33,7 @@ html,body{margin:0;height:100%;background:var(--bg);color:var(--fg);font-family:
 .setup button{font:inherit;font-weight:700;font-size:16px;padding:15px 28px;border-radius:14px;border:0;background:var(--brass);color:#1B1A17;width:min(520px,100%)}
 .err{color:var(--warn);font-size:14px;min-height:20px}
 .small{font-size:13px;color:var(--muted)}
-#ov{position:fixed;inset:0;z-index:5;background:var(--bg);padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}
-#ov iframe{display:block;width:100%;height:100%;border:0;background:var(--bg)}
+#ov{position:fixed;inset:0;z-index:5;overflow:hidden;background:var(--bg);padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}
 #ovx{position:fixed;z-index:6;top:calc(10px + env(safe-area-inset-top));right:calc(12px + env(safe-area-inset-right));font:inherit;font-weight:700;font-size:14px;padding:9px 16px;border-radius:99px;border:1px solid var(--line);background:#211F1B;color:var(--fg)}
 .off{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(16px + env(safe-area-inset-bottom));background:#2B2619;color:var(--fg);border:1px solid var(--line);border-radius:99px;padding:8px 16px;font-size:13px;display:none}
 </style>
@@ -59,6 +61,7 @@ function setup(msg) {
   };
 }
 function open_(v) {
+  document.body.classList.add('on');
   app.innerHTML = '';
   var f = document.createElement('iframe');
   f.src = v;
@@ -85,9 +88,23 @@ function openOv(u) {
   // Bouton de secours si la page des analyses ne se charge pas.
   ovT = setTimeout(function () { if (!ov || document.getElementById('ovx')) return; var b = document.createElement('button'); b.id = 'ovx'; b.textContent = 'Fermer'; b.onclick = closeOv; document.body.appendChild(b); }, 8000);
 }
+function within(w, f) { for (var i = 0; w && i < 6; i++) { if (w === f) return true; if (w === window) return false; try { w = w.parent; } catch (x) { return false; } } return false; }
+function fit(f, h) {
+  if (!f || !(h > 0)) return;
+  var box = f.parentNode, cs = getComputedStyle(box), base = box.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom);
+  var d = Math.round(f.getBoundingClientRect().height - h);
+  if (d > 1 && d < 260) f.style.height = (base + d) + 'px'; else if (d <= 1 && d > -2) return; else f.style.height = '';
+}
+window.addEventListener('resize', function () { var fs = document.querySelectorAll('iframe'); for (var i = 0; i < fs.length; i++) fs[i].style.height = ''; });
 window.addEventListener('message', function (e) {
   var m = e.data || {};
   if (!e.source || !/^https:\/\/[\w.-]+\.(googleusercontent|google)\.com$/.test(e.origin)) return;
+  if (m.yaya === 'vp') {
+    var mf = app.querySelector('iframe'), of = ov && ov.querySelector('iframe'), f = of && within(e.source, of.contentWindow) ? of : mf && within(e.source, mf.contentWindow) ? mf : null;
+    if (f) fit(f, +m.h);
+    if (f === mf && /^#[0-9a-f]{6}$/i.test(m.bg || '')) { document.documentElement.style.setProperty('--app', m.bg); var tc = document.querySelectorAll('meta[name=theme-color]'); for (var j = 0; j < tc.length; j++) tc[j].setAttribute('content', m.bg); }
+    return;
+  }
   if (m.yaya === 'hello?') { e.source.postMessage({ yaya: 'hello', id: m.id, shell: 1 }, e.origin); if (fromOv(e.source)) { clearTimeout(ovT); var x = document.getElementById('ovx'); if (x) x.remove(); } return; }
   if (m.yaya === 'open') { var u = String(m.url || ''); if (valid(u) && /[?&]app=analyses\b/.test(u)) openOv(u); return; }
   if (m.yaya === 'close') { if (fromOv(e.source)) closeOv(); return; }

@@ -37,6 +37,14 @@ body.on,body.on #app,body.on #ov{background:var(--app)}
 #ov{position:fixed;inset:0;z-index:5;overflow:hidden;background:var(--bg);padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}
 #ovx{position:fixed;z-index:6;top:calc(10px + env(safe-area-inset-top));right:calc(12px + env(safe-area-inset-right));font:inherit;font-weight:700;font-size:14px;padding:9px 16px;border-radius:99px;border:1px solid var(--line);background:#211F1B;color:var(--fg)}
 .off{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(16px + env(safe-area-inset-bottom));background:#2B2619;color:var(--fg);border:1px solid var(--line);border-radius:99px;padding:8px 16px;font-size:13px;display:none}
+#ld{position:fixed;inset:0;z-index:7;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;background:var(--app);color:#1B1A17;transition:opacity .25s}
+#ld.out{opacity:0;pointer-events:none}
+#ld b{font-family:Georgia,"Times New Roman",serif;font-weight:400;font-size:56px;line-height:1;font-variant-numeric:tabular-nums}
+#ld span{font-size:15px;color:#7C7970}
+#ld .bar{width:min(260px,64%);height:4px;border-radius:4px;background:rgba(0,0,0,.1);overflow:hidden}
+#ld .bar i{display:block;height:100%;width:0;background:#9C7B3F;transition:width .2s linear}
+@media (prefers-color-scheme: dark){#ld{color:#F2EFE7}#ld span{color:#ABA598}#ld .bar{background:rgba(255,255,255,.12)}#ld .bar i{background:#D9BB7C}}
+@media (prefers-reduced-motion:reduce){#ld,#ld .bar i{transition:none}}
 </style>
 </head>
 <body>
@@ -48,6 +56,29 @@ body.on,body.on #app,body.on #ov{background:var(--app)}
   ['gesturestart', 'gesturechange', 'gestureend'].forEach(function (t) { document.addEventListener(t, no, { passive: false }); });
   document.addEventListener('touchmove', function (e) { if (e.touches && e.touches.length > 1 || (e.scale && e.scale !== 1)) e.preventDefault(); }, { passive: false });
 })();
+// v33 · Chargement de l'appli affiché en pourcentage (à la place de l'écran vide). Google ne donne pas
+// l'avancement réel : le pourcentage suit la durée habituelle d'ouverture sur cet appareil et n'atteint 100 %
+// que lorsque l'appli YÄYA a vraiment démarré dans la page.
+var LD = null;
+function ldStart(frame) {
+  ldDone(true);
+  var el = document.createElement('div'); el.id = 'ld';
+  el.innerHTML = '<b>0 %</b><div class="bar"><i></i></div><span>Chargement de YÄYA…</span>';
+  document.body.appendChild(el);
+  var K = 'yaya-ld-app', avg = 5000; try { avg = +localStorage.getItem(K) || 5000; } catch (e) {}
+  var t0 = Date.now();
+  LD = { el: el, frame: frame, t0: t0, avg: avg, K: K, tick: setInterval(function () {
+    var p = Math.min(97, Math.round(100 * (1 - Math.exp(-(Date.now() - t0) / (avg / 2)))));
+    el.querySelector('b').textContent = p + ' %'; el.querySelector('i').style.width = p + '%';
+    if (Date.now() - t0 > 30000) ldDone(true);
+  }, 150) };
+}
+function ldDone(skip) {
+  if (!LD) return; var L = LD; LD = null; clearInterval(L.tick);
+  if (!skip) { var d = Date.now() - L.t0; if (d > 80 && d < 60000) { try { localStorage.setItem(L.K, String(Math.round(L.avg * 0.6 + d * 0.4))); } catch (e) {} } }
+  L.el.querySelector('b').textContent = '100 %'; L.el.querySelector('i').style.width = '100%';
+  setTimeout(function () { L.el.classList.add('out'); setTimeout(function () { L.el.remove(); }, 300); }, skip ? 0 : 160);
+}
 var KEY = 'yaya-lien-gerant', app = document.getElementById('app');
 function get() { try { return localStorage.getItem(KEY) || ''; } catch (e) { return ''; } }
 function set(v) { try { localStorage.setItem(KEY, v); return true; } catch (e) { return false; } }
@@ -75,6 +106,7 @@ function open_(v) {
   f.setAttribute('allow', 'geolocation; clipboard-write');
   f.setAttribute('referrerpolicy', 'no-referrer');
   app.appendChild(f);
+  ldStart(f);
 }
 if (/[?&]changer\b/.test(location.search)) { try { localStorage.removeItem(KEY); } catch (e) {} history.replaceState(null, '', location.pathname); }
 var lien = get();
@@ -85,12 +117,12 @@ function net() { document.getElementById('off').style.display = navigator.onLine
 // Analyses : ouvertes par-dessus l'appli, dans l'app (pas de bandeau Google, retour en un geste).
 var ov = null, ovT = 0;
 function fromOv(w) { if (!ov) return false; var f = ov.querySelector('iframe').contentWindow; for (var i = 0; w && i < 6; i++) { if (w === f) return true; if (w === window) return false; try { w = w.parent; } catch (x) { return false; } } return false; }
-function closeOv() { clearTimeout(ovT); if (ov) { ov.remove(); ov = null; } var x = document.getElementById('ovx'); if (x) x.remove(); }
+function closeOv() { if (LD && ov && LD.frame === ov.querySelector('iframe')) ldDone(true); clearTimeout(ovT); if (ov) { ov.remove(); ov = null; } var x = document.getElementById('ovx'); if (x) x.remove(); }
 function openOv(u) {
   closeOv();
   ov = document.createElement('div'); ov.id = 'ov';
   var f = document.createElement('iframe'); f.src = u; f.title = 'YÄYA Analyses'; f.setAttribute('referrerpolicy', 'no-referrer');
-  ov.appendChild(f); document.body.appendChild(ov);
+  ov.appendChild(f); document.body.appendChild(ov); ldStart(f);
   // Bouton de secours si la page des analyses ne se charge pas.
   ovT = setTimeout(function () { if (!ov || document.getElementById('ovx')) return; var b = document.createElement('button'); b.id = 'ovx'; b.textContent = 'Fermer'; b.onclick = closeOv; document.body.appendChild(b); }, 8000);
 }
@@ -108,10 +140,11 @@ window.addEventListener('message', function (e) {
   if (m.yaya === 'vp') {
     var mf = app.querySelector('iframe'), of = ov && ov.querySelector('iframe'), f = of && within(e.source, of.contentWindow) ? of : mf && within(e.source, mf.contentWindow) ? mf : null;
     if (f) fit(f, +m.h);
+    if (f && LD && LD.frame === f) ldDone();
     if (f === mf && /^#[0-9a-f]{6}$/i.test(m.bg || '')) { document.documentElement.style.setProperty('--app', m.bg); var tc = document.querySelectorAll('meta[name=theme-color]'); for (var j = 0; j < tc.length; j++) tc[j].setAttribute('content', m.bg); }
     return;
   }
-  if (m.yaya === 'hello?') { e.source.postMessage({ yaya: 'hello', id: m.id, shell: 1 }, e.origin); if (fromOv(e.source)) { clearTimeout(ovT); var x = document.getElementById('ovx'); if (x) x.remove(); } return; }
+  if (m.yaya === 'hello?') { if (LD && within(e.source, LD.frame.contentWindow)) ldDone(); e.source.postMessage({ yaya: 'hello', id: m.id, shell: 1 }, e.origin); if (fromOv(e.source)) { clearTimeout(ovT); var x = document.getElementById('ovx'); if (x) x.remove(); } return; }
   if (m.yaya === 'open') { var u = String(m.url || ''); if (valid(u) && /[?&]app=analyses\b/.test(u)) openOv(u); return; }
   if (m.yaya === 'close') { if (fromOv(e.source)) closeOv(); return; }
   if (m.yaya !== 'pos?') return;

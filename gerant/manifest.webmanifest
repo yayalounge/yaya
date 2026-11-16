@@ -1,0 +1,18 @@
+{
+  "name": "YÄYA Gérant",
+  "short_name": "Gérant",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#161513",
+  "theme_color": "#161513",
+  "lang": "fr",
+  "icons": [
+    {
+      "src": "../icon-180.png",
+      "sizes": "180x180",
+      "type": "image/png"
+    }
+  ]
+}

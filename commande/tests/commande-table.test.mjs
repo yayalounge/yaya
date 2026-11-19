@@ -22,7 +22,7 @@ test('soirée complète : QR → « À valider » → validée = saisie normale 
   assert.deepEqual(c.corps.carte.map((r) => r.nom), ['Plats', 'Chichas', 'Boissons', 'Desserts']);
   assert.ok(!c.corps.carte.flatMap((r) => r.articles).some((a) => a.n === 'Ancien dessert'), 'article inactif caché');
   assert.equal(c.corps.options.soft.choices[1].add, 1);
-  assert.match(c.corps.carte[0].articles[0].photo, /yaya-smash\.webp$/);
+  assert.match(c.corps.carte[0].articles[0].photo, /^photos\/yaya-smash\.webp$/);
 
   // Il commande : prix recalculés par l'appli (2 × 12 + 15 + 4 + 1 de supplément).
   const r = y.post('commander', { t: 7, k: y.k(7), lines: panier.map((l) => ({ ...l, p: 0.01 })) }, appareil(1));

@@ -15,7 +15,7 @@ But : plus de commande oubliée dans l'appli. Le client choisit, l'équipe valid
 | Panneau « Commandes des tables » | `apps-script/CommandeTableUi.html`, ajouté à YÄYA Service et Gérant | Google du gérant |
 | QR des tables à imprimer | `apps-script/CommandeTableQr.html` + `QrCode.gs`, bouton « QR des tables » dans Gérant | Google du gérant |
 | Branchement dans son `Code.gs` (3 petites retouches) | `outils/brancher.mjs` produit `apps-script/Code.gs` depuis `Code.origine.gs` | |
-| Page du client `commande.yaya-lounge.fr` | `site/` (statique, GitHub Pages) | GitHub du gérant |
+| Page du client `commande.yaya-lounge.fr` | `site/` (statique, GitHub Pages ; photos des plats dans `site/photos/`, copiées du site yaya-lounge.fr) | GitHub du gérant |
 
 Le client ne voit jamais d'adresse Google. Sa page appelle le `doPost` de l'appli, qui n'accepte que trois choses :
 lire la carte, envoyer une commande, suivre ses commandes. Rien d'autre de l'appli n'est joignable sans la clé.
@@ -39,7 +39,7 @@ commandes QR vivent dans l'état de l'appli (`st.web`), gardées 8 h.
 ```bash
 cd commande
 npm ci --ignore-scripts
-npm test                     # la vraie appli du gérant dans une copie fidèle de Google : soirée complète, refus, garde-fous
+npm test                     # sa vraie appli dans une copie fidèle de Google, avec sa vraie carte (tests/carte-reelle.mjs, relue le 19/11)
 node outils/essai-local.mjs  # page client + YÄYA Service dans un navigateur (code 1234), même copie
 ```
 

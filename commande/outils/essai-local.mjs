@@ -10,7 +10,7 @@ import { projet, SERVEUR, GERANT, SOIR } from '../tests/soiree.mjs';
 const ICI = fileURLToPath(new URL('..', import.meta.url));
 const PORT = +(process.env.PORT || 8787);
 const debut = Date.now();
-const y = projet({ horloge: () => SOIR + (Date.now() - debut) });
+const y = projet({ horloge: () => SOIR + (Date.now() - debut), reelle: process.env.CARTE !== 'exemple' }); // sa vraie carte (relue le 19/11), ou CARTE=exemple
 if (process.env.OUVERT !== '0') y.api('scanIn', { lat: 48.92746, lng: 2.222845, acc: 10 }); // Sam a pris son service
 
 const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml', '.woff2': 'font/woff2', '.txt': 'text/plain; charset=utf-8' };

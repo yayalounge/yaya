@@ -28,7 +28,7 @@ var WEB_ = {
   appelsParMinute: 600, // tous les appels de la page client (carte, suivi…) par minute
   lignes: 20, articles: 30, quantite: 10, totalMax: 300,
   garder: 8 * 3600000,  // une commande validée reste suivie 8 h sur le téléphone
-  photos: 'https://yaya-lounge.fr/photos/',
+  photos: 'photos/', // servies par la page client elle-même (yaya-lounge.fr refuse l'affichage depuis un autre site)
   photosConnues: ['coeur-coulant', 'crepe-crunchy', 'crepe-nutella', 'crepe-oreo', 'crepe-sugar', 'frites', 'grandes-frites', 'mango-juice', 'milkshake-caramel', 'milkshake-fraise', 'milkshake-oreo', 'mojito-yaya', 'pasta-carbo', 'pasta-salmon', 'yaya-smash-xl', 'yaya-smash'],
   site: 'https://commande.yaya-lounge.fr/'
 };

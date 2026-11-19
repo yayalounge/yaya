@@ -35,8 +35,8 @@ var WEB_ = {
   delaiAppareil: 30,    // secondes entre deux commandes d'un même téléphone
   parMinute: 30,        // commandes par minute, tout le salon (au-delà : « demandez au comptoir »)
   appelsParTable: 240,  // appels de la page client (carte, suivi, envoi) par table et par minute (un téléphone : ~8)
-  essaisParTable: 12,
-  appelsSansTable: 300, // carte seule (sans QR valable), tout le monde ensemble, par minute   // envois par table et par minute, acceptés ou non
+  essaisParTable: 12,   // envois par table et par minute, acceptés ou non
+  appelsSansTable: 300, // carte seule (sans QR valable), tout le monde ensemble, par minute
   lignes: 20, articles: 30, quantite: 10, totalMax: 300,
   garder: 8 * 3600000,  // une commande validée reste suivie 8 h sur le téléphone
   loin: 300,            // mètres au-delà du rayon des Paramètres (au moins 300 m) : « vous semblez loin du Yäya »

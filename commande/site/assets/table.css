@@ -12,7 +12,8 @@
 .bandeau b { color: var(--blanc); font-weight: 500; }
 
 .suivi { margin: 1.2rem var(--marge) 0; display: grid; gap: 0.6rem; }
-.suivi-carte { padding: 0.9rem 1rem; border: 1px solid var(--trait); border-radius: 14px; background: var(--fond-2); animation: entre 0.5s var(--ease) both; }
+.suivi-carte { padding: 0.9rem 1rem; border: 1px solid var(--trait); border-radius: 14px; background: var(--fond-2); }
+.suivi-carte.entre { animation: entre 0.5s var(--ease) both; }
 .suivi-carte header { display: flex; justify-content: space-between; align-items: center; gap: 0.6rem; margin-bottom: 0.35rem; }
 .suivi-carte h3 { font-size: 0.95rem; font-weight: 500; }
 .suivi-carte p { font-size: 0.85rem; color: var(--discret); }
@@ -128,3 +129,24 @@ dialog.feuille::backdrop { background: rgb(0 0 0 / 0.65); animation: fondu 0.3s;
 .verif-note { color: var(--discret); font-size: 0.78rem; margin: 1.1rem auto 0; max-width: 34ch; }
 .verif.attente .verif-icone { animation: pouls 1.2s ease-in-out infinite; }
 @keyframes pouls { 50% { opacity: 0.35; transform: translateY(-3px); } }
+
+/* Suivi permanent : pastille en bas, au-dessus du panier quand il est là. */
+.pastille-suivi {
+  position: fixed; left: 0; right: 0; margin: 0 auto; width: fit-content; bottom: calc(1rem + env(safe-area-inset-bottom)); z-index: 29;
+  display: inline-flex; align-items: center; gap: 0.55rem; max-width: calc(100% - 2 * var(--marge)); padding: 0.6rem 1.05rem;
+  border: 1px solid var(--trait-fort); border-radius: 999px; background: rgb(17 17 17 / 0.92); color: var(--texte); font-size: 0.82rem;
+  -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); white-space: nowrap; transition: bottom 0.45s var(--ease);
+  animation: entre 0.5s var(--ease) both;
+}
+.pastille-suivi[hidden] { display: none; }
+.pastille-suivi b { color: var(--blanc); font-weight: 500; }
+body.avec-barre .pastille-suivi { bottom: calc(5.4rem + env(safe-area-inset-bottom)); }
+.pastille-suivi .point { width: 0.5rem; height: 0.5rem; border-radius: 50%; background: var(--discret); animation: pouls 1.6s infinite; }
+.pastille-suivi--validee .point { background: var(--blanc); animation: none; }
+.pastille-suivi--validee { border-color: var(--blanc); }
+.pastille-suivi.longue .point { background: var(--erreur); }
+.pastille-suivi.change { animation: secoue 0.4s var(--ease); }
+@keyframes pouls { 50% { opacity: 0.25; } }
+.suivi-carte .recommander { margin-top: 0.7rem; width: 100%; min-height: 2.8rem; font-size: 0.75rem; }
+.carte { padding-bottom: 12rem; }
+@media (prefers-reduced-motion: reduce) { .pastille-suivi, .pastille-suivi .point { animation: none; } }

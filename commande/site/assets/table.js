@@ -44,6 +44,7 @@ let panier = (() => { const p = lire(CLE_PANIER, null); return p && Date.now() -
 let mesCommandes = lire('yaya-commandes', []).filter((c) => c && Date.now() - c.le < 12 * 3600_000);
 const sauverPanier = () => { envoiId = null; ecrire(CLE_ENVOI, null); ecrire(CLE_PANIER, { le: Date.now(), lignes: panier }); };
 const peutCommander = () => !!(donnees?.table && donnees.etat.ouvert);
+const sauverCommandes = () => ecrire('yaya-commandes', mesCommandes);
 const cleLigne = (l) => l.n + '|' + Object.keys(l.sel).sort().map((g) => g + '=' + l.sel[g]).join('|');
 
 function toast(texte) {
@@ -70,32 +71,54 @@ const ligneValide = (l) => {
 };
 
 // ── Carte ───────────────────────────────────────────────────────────
+// L'appli du gérant met 2 à 5 s à répondre (Google). La dernière carte reçue est gardée sur le téléphone : elle
+// s'affiche tout de suite, et la vraie réponse la remplace en silence. Rien ne part sans la réponse fraîche :
+// l'appli du gérant revérifie tout (service ouvert, prix, articles) à l'envoi.
+const CLE_CARTE = 'yaya-carte';
+let fraiche = false;
+function carteGardee() {
+  const c = lire(CLE_CARTE, null);
+  if (!c || Date.now() - c.le > 7 * 86400_000 || !c.donnees?.carte?.length) return null;
+  const d = c.donnees;
+  return c.t === table && c.k === k ? d : { ...d, table: null };
+}
 async function chargerCarte() {
   clearTimeout(chargerCarte.t);
+  const avantJson = donnees && JSON.stringify(donnees.carte) + JSON.stringify(donnees.options);
+  if (!donnees) { const g = carteGardee(); if (g) appliquerCarte(g, true); }
+  let d;
   try {
-    donnees = await api('carte', table, k);
+    d = await api('carte', table, k);
   } catch (e) {
     if (!donnees) $('#carte').replaceChildren(h('p', { class: 'chargement' }, e.message));
     chargerCarte.t = setTimeout(chargerCarte, 8000);
     return;
   }
+  fraiche = true;
+  ecrire(CLE_CARTE, { le: Date.now(), t: table, k, donnees: d });
+  appliquerCarte(d, avantJson !== JSON.stringify(d.carte) + JSON.stringify(d.options) || !document.querySelector('.produit'));
+}
+function appliquerCarte(d, redessiner) {
+  donnees = d;
   articles = new Map(donnees.carte.flatMap((c) => c.articles.map((a) => [a.n, { ...a, cat: c.nom }])));
   const avant = panier.length;
   panier = panier.filter(ligneValide);
-  if (panier.length < avant) toast('Un article de votre panier n’est plus à la carte');
-  sauverPanier();
+  if (panier.length < avant) { toast('Un article de votre panier n’est plus à la carte'); sauverPanier(); }
   if (donnees.table) { $('#table-n').textContent = donnees.table; $('#table-num').hidden = false; }
   afficherBandeau();
-  afficherCarte();
+  if (redessiner) afficherCarte(); else majBadges();
   afficherBarre();
+  afficherSuivi();
   $('#pied').hidden = false;
+  if (!fraiche) return;
   // Avant l'ouverture du service ou pendant une pause : on relit la carte de temps en temps pour se débloquer seul.
   if (donnees.table && !donnees.etat.ouvert) chargerCarte.t = setTimeout(chargerCarte, 30000);
 }
 
 function afficherBandeau() {
   const b = $('#bandeau'), e = donnees.etat;
-  const msg = !donnees.table
+  // Carte gardée sur le téléphone : pas de message tant que l'appli n'a pas répondu (il pourrait être faux).
+  const msg = !fraiche ? null : !donnees.table
     ? [h('b', {}, 'QR code non reconnu. '), 'Vous pouvez regarder la carte. Pour commander, scannez le QR de votre table ou demandez au comptoir.']
     : e.pause
       ? [h('b', {}, 'Commandes par téléphone en pause. '), 'Commandez au comptoir, on revient vite.']
@@ -184,6 +207,7 @@ function afficherBarre(secoue = false) {
   const n = nbArticles();
   const barre = $('#barre');
   barre.classList.toggle('visible', n > 0 && peutCommander());
+  document.body.classList.toggle('avec-barre', n > 0 && peutCommander());
   $('#compte').textContent = n;
   $('#total-barre').textContent = euros(totalPanier());
   if (secoue) { barre.classList.remove('secoue'); void barre.offsetWidth; barre.classList.add('secoue'); }
@@ -261,7 +285,10 @@ function changerQte(i, d) {
   if (!panier.length) return $('#feuille-panier').close();
   afficherPanier();
 }
-$('#ouvrir-panier').onclick = () => { afficherPanier(); $('#feuille-panier').showModal(); };
+$('#ouvrir-panier').onclick = () => { afficherPanier(); $('#feuille-panier').showModal(); prechauffer(); };
+// En intérieur, le GPS met jusqu'à 10 s. Déjà autorisé : on le lance dès l'ouverture du panier, l'envoi reprend la
+// position obtenue (gardée 2 min par le téléphone) au lieu d'attendre. Jamais de demande d'autorisation ici.
+async function prechauffer() { if (peutCommander() && (await dejaAutorise())) position(); }
 $('#panier-fermer').onclick = () => $('#feuille-panier').close();
 for (const d of document.querySelectorAll('dialog.feuille')) d.addEventListener('click', (e) => { if (e.target === d) d.close(); });
 
@@ -329,13 +356,14 @@ async function envoyer() {
     if (!pos) return afficherVerif(erreur === 'refus' ? 'refus' : 'introuvable');
     ok.textContent = bouton.textContent = 'Envoi…';
     if (!envoiId) { envoiId = jeton(); ecrire(CLE_ENVOI, { id: envoiId, le: Date.now() }); }
-    const { commande } = await api('commander', { t: donnees.table, k, pos, envoi: envoiId, lines: panier.map((l) => ({ n: l.n, sel: l.sel, q: l.q })) }, appareil);
+    const envoyees = panier.map((l) => ({ n: l.n, sel: { ...l.sel }, q: l.q }));
+    const { commande } = await api('commander', { t: donnees.table, k, pos, envoi: envoiId, lines: envoyees }, appareil);
     envoye = true;
     vue(false);
     panier = [];
     sauverPanier(); majBadges(); afficherBarre();
-    mesCommandes = [{ id: commande.id, le: Date.now() }, ...mesCommandes.filter((c) => c.id !== commande.id)].slice(0, 12);
-    ecrire('yaya-commandes', mesCommandes);
+    mesCommandes = [{ id: commande.id, le: Date.now(), t: table, lignes: envoyees }, ...mesCommandes.filter((c) => c.id !== commande.id)].slice(0, 12);
+    sauverCommandes();
     $('#panier-lignes').replaceChildren(h('div', { class: 'envoyee' },
       h('div', { class: 'coche', 'aria-hidden': 'true' }, '✓'),
       h('h2', {}, `Commande n° ${commande.numero} envoyée`),
@@ -376,15 +404,48 @@ const TEXTES = {
   refusee: ['Refusée', 'L’équipe n’a pas pu la prendre : voyez le comptoir.'],
 };
 let suivies = [];
+const dejaVues = new Set(); // l'animation d'entrée seulement la première fois (le suivi se redessine toutes les 10 s)
+const ATTENTE_LONGUE = 5 * 60_000;
+const attendDepuis = (c) => Date.now() - Date.parse(c.creeLe);
+// « Recommander » : les lignes envoyées depuis ce téléphone, encore à la carte (sinon le bouton n'apparaît pas).
+const aRecommander = (c) => (mesCommandes.find((m) => m.id === c.id)?.lignes ?? []).filter((l) => articles.size && ligneValide(l));
+function recommander(c) {
+  const lignes = aRecommander(c);
+  let n = 0;
+  for (const l of lignes) if (ajouter(l.n, l.q, { ...l.sel })) n++;
+  if (!n) return;
+  afficherPanier();
+  $('#feuille-panier').showModal();
+  prechauffer();
+}
 function afficherSuivi(commandes, neuve) {
   if (commandes) suivies = [...commandes, ...suivies.filter((s) => !commandes.some((c) => c.id === s.id))].sort((a, b) => b.creeLe.localeCompare(a.creeLe));
   const visibles = suivies.filter((c) => TEXTES[c.statut] && c.statut !== 'reglee').slice(0, 4);
   const s = $('#suivi');
   s.hidden = !visibles.length;
-  s.replaceChildren(...visibles.map((c) => h('article', { class: `suivi-carte${c.id === neuve ? ' neuve' : ''}` },
-    h('header', {}, h('h3', {}, `Commande n° ${c.numero} · ${heure(c.creeLe)}`), h('span', { class: `pastille pastille--${c.statut}` }, TEXTES[c.statut][0])),
-    h('p', {}, TEXTES[c.statut][1]),
-    h('p', {}, c.lignes.map((l) => `${l.q} × ${l.n}${l.d?.length ? ` (${l.d.join(', ')})` : ''}`).join(', ') + ` · ${euros(c.total)}`))));
+  s.replaceChildren(...visibles.map((c) => {
+    const longue = c.statut === 'nouvelle' && attendDepuis(c) > ATTENTE_LONGUE;
+    const encore = ['validee', 'servie'].includes(c.statut) && peutCommander() && aRecommander(c).length;
+    const entre = !dejaVues.has(c.id); dejaVues.add(c.id);
+    return h('article', { class: `suivi-carte${c.id === neuve ? ' neuve' : ''}${entre ? ' entre' : ''}`, id: `suivi-${c.id}` },
+      h('header', {}, h('h3', {}, `Commande n° ${c.numero} · ${heure(c.creeLe)}`), h('span', { class: `pastille pastille--${c.statut}` }, TEXTES[c.statut][0])),
+      h('p', {}, longue ? 'Toujours en attente ? Faites signe à un serveur.' : TEXTES[c.statut][1]),
+      h('p', {}, c.lignes.map((l) => `${l.q} × ${l.n}${l.d?.length ? ` (${l.d.join(', ')})` : ''}`).join(', ') + ` · ${euros(c.total)}`),
+      encore ? h('button', { class: 'btn recommander', type: 'button', onclick: () => recommander(c) }, 'Recommander la même chose') : null);
+  }));
+  afficherPastille();
+}
+// Pastille fixe en bas de l'écran : la dernière commande en cours, toujours visible, même en bas de la carte.
+function afficherPastille() {
+  const c = suivies.find((x) => x.statut === 'nouvelle' || x.statut === 'validee');
+  const p = $('#pastille');
+  p.hidden = !c;
+  if (!c) return;
+  const longue = c.statut === 'nouvelle' && attendDepuis(c) > ATTENTE_LONGUE;
+  p.className = `pastille-suivi pastille-suivi--${c.statut}${longue ? ' longue' : ''}`;
+  p.replaceChildren(h('span', { class: 'point', 'aria-hidden': 'true' }),
+    h('span', {}, `Commande n° ${c.numero} · `, h('b', {}, longue ? 'faites signe à un serveur' : c.statut === 'nouvelle' ? 'en attente' : 'acceptée')));
+  p.onclick = () => document.getElementById(`suivi-${c.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
 async function suivre() {
   clearTimeout(suivre.t);
@@ -393,7 +454,11 @@ async function suivre() {
     const { commandes, etat } = await api('suivi', mesCommandes.map((c) => c.id), table, k);
     const avant = new Map(suivies.map((c) => [c.id, c.statut]));
     afficherSuivi(commandes);
-    for (const c of commandes) if (avant.has(c.id) && avant.get(c.id) !== c.statut && c.statut !== 'reglee') { toast(`Commande n° ${c.numero} : ${TEXTES[c.statut][0].toLowerCase()}`); navigator.vibrate?.(30); }
+    for (const c of commandes) if (avant.has(c.id) && avant.get(c.id) !== c.statut && c.statut !== 'reglee') {
+      toast(`Commande n° ${c.numero} : ${TEXTES[c.statut][0].toLowerCase()}`);
+      navigator.vibrate?.(c.statut === 'validee' ? [30, 60, 30] : 30);
+      const p = $('#pastille'); p.classList.remove('change'); void p.offsetWidth; p.classList.add('change');
+    }
     // L'équipe a mis les QR en pause, ou le service a fini : la page se remet en lecture seule.
     if (etat && donnees && (etat.ouvert !== donnees.etat.ouvert)) { donnees.etat = etat; afficherBandeau(); afficherBarre(); if (!etat.ouvert) chargerCarte.t = setTimeout(chargerCarte, 30000); }
     if (!commandes.some((c) => c.statut === 'nouvelle' || c.statut === 'validee')) return;

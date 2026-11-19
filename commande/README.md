@@ -13,7 +13,7 @@ But : plus de commande oubliée dans l'appli. Le client choisit, l'équipe valid
 | --- | --- | --- |
 | Moteur : carte, prix, commandes, garde-fous | `apps-script/CommandeTable.gs` dans son projet Apps Script « YÄYA » | Google du gérant |
 | Panneau « Commandes des tables » | `apps-script/CommandeTableUi.html`, ajouté à YÄYA Service et Gérant | Google du gérant |
-| QR des tables à imprimer | `apps-script/CommandeTableQr.html` + `QrCode.gs`, bouton « QR des tables » dans Gérant | Google du gérant |
+| QR des tables : à imprimer, PDF à télécharger, envoi par mail | `apps-script/CommandeTableQr.html` + `QrCode.gs`, bouton « QR des tables » dans Gérant | Google du gérant |
 | Branchement dans son `Code.gs` (3 petites retouches) | `outils/brancher.mjs` produit `apps-script/Code.gs` depuis `Code.origine.gs` | |
 | Page du client `commande.yaya-lounge.fr` | `site/` (statique, GitHub Pages ; photos des plats dans `site/photos/`, copiées du site yaya-lounge.fr) | GitHub du gérant |
 
@@ -33,6 +33,11 @@ commandes QR vivent dans l'état de l'appli (`st.web`), gardées 8 h.
   pour tout le salon, 600 appels par minute ; au plus 3 commandes en attente par table, 20 lignes, 30 articles,
   10 du même, 300 € par commande.
 - Valider est dédoublonné (`_op`) : une coupure réseau ne crée jamais deux tickets.
+- Contre les farceurs (QR photographié, commandes depuis chez eux) : la **position du téléphone est obligatoire**
+  à l'envoi (GPS du téléphone, un VPN n'y change rien). Loin du lounge (rayon des Paramètres, 300 m mini) ou position
+  refusée : pas de commande, et la page explique comment l'autoriser. Rien d'autre que « sur place » n'est gardé.
+  Dans le panneau, « Refuser » propose « Fausse commande · bloquer » : le téléphone est bloqué pour la soirée, et
+  2 fausses commandes sur une table la verrouillent (bouton « débloquer »). Réglages : `WEB_` en haut de CommandeTable.gs.
 
 ## Essayer sans toucher à son appli
 

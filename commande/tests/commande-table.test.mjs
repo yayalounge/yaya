@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { projet, SERVEUR, GERANT } from './soiree.mjs';
+import { projet, SERVEUR, GERANT, AU_SALON } from './soiree.mjs';
 
 // Essais sur le vrai code de l'appli du gérant (apps-script/Code.gs branché + CommandeTable.gs), dans une copie
 // fidèle de Google en mémoire. Ils jouent une soirée : le client commande au QR, l'équipe valide, sert, encaisse.
@@ -149,4 +149,63 @@ test('pages : panneau « À valider » dans YÄYA Service, QR à imprimer réser
   assert.equal(donnees.length, 20);
   assert.equal(donnees[6].lien, `https://commande.yaya-lounge.fr/?t=7&k=${y.k(7)}`);
   assert.match(donnees[0].svg, /^<svg/);
+});
+
+test('farceurs : loin du salon refusé, « fausse commande » bloque le téléphone, 2 fausses verrouillent la table', () => {
+  const y = projet();
+  y.api('scanIn', { lat: 48.92746, lng: 2.222845, acc: 10 });
+  const cmd = (table, tel, pos = AU_SALON) => { y.cache.clear(); return y.post('commander', { t: table, k: y.k(table), pos, lines: [{ n: 'Frites', q: 1 }] }, tel); };
+
+  // QR photographié puis utilisé depuis Paris (12 km) : refusé, rien n'arrive à l'équipe.
+  const loin = cmd(4, appareil(50), { lat: 48.8566, lng: 2.3522, acc: 30 });
+  assert.equal(loin.statut, 403);
+  assert.equal(loin.corps.erreur, 'loin');
+  // Position refusée, ou trop imprécise : refusée aussi (obligatoire), avec un code que la page explique.
+  assert.equal(cmd(4, appareil(51), null).corps.erreur, 'position');
+  assert.equal(cmd(4, appareil(51), { lat: 48.9275, lng: 2.2229, acc: 5000 }).corps.erreur, 'position');
+  // Sur place : passe. Rien d'autre que « sur place » n'est gardé.
+  assert.equal(cmd(4, appareil(51), { lat: 48.9275, lng: 2.2229, acc: 25 }).statut, 201);
+  assert.equal(cmd(4, appareil(52), { lat: 48.9273, lng: 2.2227, acc: 60 }).statut, 201);
+  const st = y.etat();
+  assert.deepEqual(st.web.map((o) => o.lieu), ['ok', 'ok']);
+  assert.ok(!JSON.stringify(st).includes('48.9275'), 'aucune coordonnée gardée');
+
+  // L'équipe : « Fausse commande · bloquer » (un farceur assis dehors, sur la terrasse d'en face).
+  const faux1 = st.web[1];
+  assert.match(y.api('webNo', { id: faux1.id, faux: true }).msg, /ne peut plus commander/);
+  const bloque = cmd(4, appareil(52));
+  assert.equal(bloque.statut, 403);
+  assert.equal(bloque.corps.erreur, 'bloque');
+  // Un autre téléphone sur la même table, 2e fausse commande : la table est verrouillée.
+  assert.equal(cmd(4, appareil(53)).statut, 201);
+  const faux2 = y.etat().web.find((o) => o.app === appareil(53));
+  assert.match(y.api('webNo', { id: faux2.id, faux: true }).msg, /Table 4 verrouillée/);
+  assert.equal(cmd(4, appareil(54)).corps.erreur, 'table_bloquee');
+  assert.equal(cmd(5, appareil(54)).statut, 201, 'les autres tables commandent normalement');
+  // Débloquer depuis le panneau.
+  y.api('webDebloque', { t: 4 });
+  assert.equal(cmd(4, appareil(54)).statut, 201);
+  // Un simple « Refuser » (rupture, erreur) ne bloque personne.
+  const normal = y.etat().web.find((o) => o.t === 5);
+  y.api('webNo', { id: normal.id });
+  assert.equal(cmd(5, appareil(54)).statut, 201);
+});
+
+test('QR en PDF : gérant seulement, 20 tables sur 5 pages A4, envoyés par mail à l’adresse du récap', async () => {
+  const y = projet();
+  y.onglet('params').push(['Email du récap', 'gerant@example.com', '']);
+  assert.throws(() => y.api('webQrPdf', {}), /Réservé au gérant/);
+  const { pdf } = y.api('webQrPdf', {}, GERANT);
+  const octets = Buffer.from(pdf, 'base64'), texte = octets.toString('latin1');
+  assert.ok(texte.startsWith('%PDF-1.4') && texte.trimEnd().endsWith('%%EOF'));
+  assert.match(texte, /\/Count 5 /);
+  // La table des renvois pointe sur chaque objet (sinon certains lecteurs refusent le fichier).
+  const xref = texte.slice(texte.lastIndexOf('xref')).split('\n').slice(3).filter((l) => / n $/.test(l)).map((l) => +l.slice(0, 10));
+  xref.forEach((o, i) => assert.ok(texte.startsWith(`${i + 1} 0 obj`, o), `objet ${i + 1}`));
+  if (process.env.PDF_SORTIE) (await import('node:fs')).writeFileSync(process.env.PDF_SORTIE, octets);
+
+  assert.match(y.api('webQrMail', {}, GERANT).msg, /gerant@example\.com/);
+  const [, mail] = y.journal.find(([k]) => k === 'mail');
+  assert.equal(mail.to, 'gerant@example.com');
+  assert.equal(mail.attachments[0].getContentType(), 'application/pdf');
 });

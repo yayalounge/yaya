@@ -11,6 +11,10 @@ body{margin:0;font:400 15px/1.5 system-ui,-apple-system,"Helvetica Neue",Arial,s
 .entete{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;padding:16px;border-bottom:1px solid var(--trait);background:#fff}
 .entete p{margin:0;max-width:52ch;color:var(--texte)}
 .entete button{font:inherit;font-weight:700;border:0;border-radius:12px;padding:12px 18px;background:#1d1d1b;color:#fff;cursor:pointer}
+.entete button.second{background:#fff;color:#1d1d1b;border:1px solid var(--trait)}
+.entete button:disabled{opacity:.5;cursor:default}
+.boutons{display:flex;flex-wrap:wrap;gap:8px}
+.etat{flex-basis:100%;margin:0;font-size:14px;color:var(--texte);min-height:1.2em}
 .planche{display:grid;grid-template-columns:repeat(auto-fill,minmax(15rem,1fr));gap:1rem;padding:16px}
 .chevalet{background:var(--noir);color:var(--blanc);border-radius:14px;padding:22px 18px;display:flex;flex-direction:column;align-items:center;gap:12px;text-align:center}
 .chevalet .logo{width:96px;height:auto}
@@ -31,7 +35,12 @@ body{margin:0;font:400 15px/1.5 system-ui,-apple-system,"Helvetica Neue",Arial,s
 <body>
 <header class="entete">
   <p>Un QR par table, 4 par page A4, à poser sur la bonne table. Chaque QR ne marche que pour sa table. Les commandes n’arrivent que pendant une soirée ouverte.</p>
-  <button type="button" id="imprimer">Imprimer</button>
+  <div class="boutons">
+    <button type="button" id="pdf">Télécharger le PDF</button>
+    <button type="button" class="second" id="mail">Recevoir par mail</button>
+    <button type="button" class="second" id="imprimer">Imprimer</button>
+  </div>
+  <p class="etat" id="etat" role="status"></p>
 </header>
 <main class="planche" id="planche"></main>
 <script>
@@ -51,6 +60,25 @@ body{margin:0;font:400 15px/1.5 system-ui,-apple-system,"Helvetica Neue",Arial,s
     planche.appendChild(c);
   });
   document.getElementById('imprimer').onclick = function () { window.print(); };
+  var cle = <?!= cleJson ?>, etat = document.getElementById('etat');
+  function appel(action, bouton, ok) {
+    bouton.disabled = true; etat.textContent = 'Un instant…';
+    google.script.run
+      .withSuccessHandler(function (r) { bouton.disabled = false; ok(r || {}); })
+      .withFailureHandler(function (e) { bouton.disabled = false; etat.textContent = String((e && e.message) || e).replace(/^[A-Z]+\|/, ''); })
+      .api(cle, action, {});
+  }
+  document.getElementById('pdf').onclick = function () {
+    appel('webQrPdf', this, function (r) {
+      var bin = atob(r.pdf || ''), o = new Uint8Array(bin.length);
+      for (var i = 0; i < bin.length; i++) o[i] = bin.charCodeAt(i);
+      var url = URL.createObjectURL(new Blob([o], { type: 'application/pdf' })), a = document.createElement('a');
+      a.href = url; a.download = 'QR-tables-Yaya-Lounge.pdf'; document.body.appendChild(a); a.click(); a.remove();
+      etat.textContent = 'PDF téléchargé. Si rien ne s’ouvre, utilisez « Recevoir par mail ».';
+      setTimeout(function () { URL.revokeObjectURL(url); }, 60000);
+    });
+  };
+  document.getElementById('mail').onclick = function () { appel('webQrMail', this, function (r) { etat.textContent = r.msg || 'Envoyé.'; }); };
 })();
 </script>
 </body>

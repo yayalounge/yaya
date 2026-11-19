@@ -33,7 +33,8 @@ Si l'adresse `/exec` changeait un jour, mettre la nouvelle dans `site/index.html
 
 ## 3. Les QR
 
-Gérant › bouton **QR des tables** (en haut) › imprimer (4 cartes A6 par page A4). Chaque QR mène à
+Gérant › bouton **QR des tables** (en haut) › « Télécharger le PDF », « Recevoir par mail » (adresse « Email du récap »
+des Paramètres) ou « Imprimer ». 4 chevalets A6 par page A4, à découper sur les pointillés. Chaque QR mène à
 `https://commande.yaya-lounge.fr/?t=<table>&k=<signature>`. Les tables viennent de l'onglet du plan.
 
 ## 4. Essai le premier soir

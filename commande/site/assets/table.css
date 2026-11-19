@@ -115,3 +115,16 @@ dialog.feuille::backdrop { background: rgb(0 0 0 / 0.65); animation: fondu 0.3s;
 .chargement { padding: 4rem var(--marge); text-align: center; color: var(--discret); }
 .squelette { height: 5.4rem; border-bottom: 1px solid var(--trait); background: linear-gradient(90deg, transparent, rgb(242 241 238 / 0.05), transparent) 0 0 / 200% 100%; animation: brille 1.4s infinite; }
 @keyframes brille { to { background-position: -200% 0; } }
+
+/* Vérification de présence avant l'envoi */
+.verif { display: flex; flex-direction: column; min-height: 0; }
+.verif[hidden] { display: none; }
+.verif .corps { text-align: center; padding-top: 1.6rem; }
+.verif-icone { width: 3rem; height: 3rem; color: var(--blanc); margin: 0 auto 1rem; display: block; animation: entre 0.5s var(--ease); }
+.verif-texte { color: var(--texte); font-size: 0.95rem; margin: 0.7rem auto 0; max-width: 30ch; }
+.verif-aide { text-align: left; margin: 1.1rem 0 0; padding: 0.9rem 1rem; border: 1px solid var(--trait-fort); border-radius: 14px; font-size: 0.88rem; color: var(--texte); }
+.verif-aide b { color: var(--blanc); font-weight: 500; }
+.verif-aide ol { margin: 0.4rem 0 0; padding-left: 1.2rem; display: grid; gap: 0.25rem; }
+.verif-note { color: var(--discret); font-size: 0.78rem; margin: 1.1rem auto 0; max-width: 34ch; }
+.verif.attente .verif-icone { animation: pouls 1.2s ease-in-out infinite; }
+@keyframes pouls { 50% { opacity: 0.35; transform: translateY(-3px); } }

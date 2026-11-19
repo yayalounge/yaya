@@ -260,18 +260,65 @@ $('#ouvrir-panier').onclick = () => { afficherPanier(); $('#feuille-panier').sho
 $('#panier-fermer').onclick = () => $('#feuille-panier').close();
 for (const d of document.querySelectorAll('dialog.feuille')) d.addEventListener('click', (e) => { if (e.target === d) d.close(); });
 
+// ── Présence au salon ───────────────────────────────────────────────
+// Obligatoire pour envoyer : un QR photographié ne sert à rien loin du Yäya. La position part avec la commande,
+// l'appli du gérant ne garde que « sur place ». Le VPN ne change rien (c'est le GPS du téléphone, pas l'adresse IP).
+const position = () => new Promise((ok) => {
+  if (!navigator.geolocation) return ok({ erreur: 'absent' });
+  navigator.geolocation.getCurrentPosition(
+    (p) => ok({ pos: { lat: p.coords.latitude, lng: p.coords.longitude, acc: Math.round(p.coords.accuracy) } }),
+    (e) => ok({ erreur: e.code === 1 ? 'refus' : 'introuvable' }),
+    { enableHighAccuracy: true, maximumAge: 120000, timeout: 12000 });
+});
+const dejaAutorise = async () => { try { return (await navigator.permissions.query({ name: 'geolocation' })).state === 'granted'; } catch { return false; } };
+const iphone = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+
+const VERIF = {
+  intro: ['Confirmez que vous êtes au Yäya', 'Pour éviter les fausses commandes, seules les personnes présentes au salon peuvent commander depuis leur table. Votre téléphone va vous demander l’accès à votre position.', 'Autoriser et envoyer'],
+  refus: ['Position refusée', 'Sans elle, la commande ne peut pas partir de votre téléphone. Autorisez-la en quelques secondes :', 'Réessayer'],
+  introuvable: ['Position introuvable', 'Votre téléphone n’a pas donné de position. Vérifiez que la localisation est activée, puis réessayez.', 'Réessayer'],
+  loin: ['Vous semblez loin du Yäya', 'Les commandes à table se font sur place. Si vous êtes bien au salon, réessayez près d’une fenêtre, ou commandez au comptoir.', 'Réessayer'],
+};
+function aideReglages() {
+  return iphone
+    ? [h('b', {}, 'Sur iPhone'), h('ol', {}, h('li', {}, 'Réglages › Confidentialité et sécurité › Service de localisation : activé.'), h('li', {}, 'Plus bas, « Sites Safari » (ou votre navigateur) › « Lorsque l’app est active ».'), h('li', {}, 'Revenez ici, rechargez la page et touchez Réessayer.'))]
+    : [h('b', {}, 'Sur Android'), h('ol', {}, h('li', {}, 'Touchez l’icône à gauche de l’adresse, en haut de l’écran.'), h('li', {}, 'Autorisations › Position › Autoriser.'), h('li', {}, 'Vérifiez aussi que la localisation du téléphone est activée, puis touchez Réessayer.'))];
+}
+function vue(verif) {
+  $('#panier-corps').hidden = verif; $('#panier-actions').hidden = verif; $('#verif').hidden = !verif;
+}
+function afficherVerif(cas, message) {
+  const [titre, texte, bouton] = VERIF[cas];
+  $('#verif-titre').textContent = titre;
+  $('#verif-texte').textContent = message || texte;
+  $('#verif-aide').hidden = cas !== 'refus';
+  if (cas === 'refus') $('#verif-aide').replaceChildren(...aideReglages());
+  $('#verif-ok').textContent = bouton;
+  $('#verif-ok').disabled = false;
+  $('#verif-erreur').textContent = '';
+  $('#verif').classList.remove('attente');
+  vue(true);
+}
+$('#verif-retour').onclick = () => vue(false);
+
 let envoiEnCours = false;
-$('#envoyer').onclick = async () => {
-  if (envoiEnCours) return;
+async function envoyer() {
+  if (envoiEnCours || !panier.length || !peutCommander()) return;
   envoiEnCours = true;
-  const bouton = $('#envoyer');
-  bouton.disabled = true;
-  bouton.textContent = 'Envoi…';
-  $('#panier-erreur').textContent = '';
+  const bouton = $('#envoyer'), ok = $('#verif-ok');
+  bouton.disabled = ok.disabled = true;
+  $('#verif').classList.add('attente');
+  ok.textContent = 'Vérification…';
+  bouton.textContent = 'Vérification…';
+  $('#panier-erreur').textContent = $('#verif-erreur').textContent = '';
   let envoye = false;
   try {
-    const { commande } = await api('commander', { t: donnees.table, k, lines: panier.map((l) => ({ n: l.n, sel: l.sel, q: l.q })) }, appareil);
+    const { pos, erreur } = await position();
+    if (!pos) return afficherVerif(erreur === 'refus' ? 'refus' : 'introuvable');
+    ok.textContent = bouton.textContent = 'Envoi…';
+    const { commande } = await api('commander', { t: donnees.table, k, pos, lines: panier.map((l) => ({ n: l.n, sel: l.sel, q: l.q })) }, appareil);
     envoye = true;
+    vue(false);
     panier = [];
     sauverPanier(); majBadges(); afficherBarre();
     mesCommandes = [{ id: commande.id, le: Date.now() }, ...mesCommandes.filter((c) => c.id !== commande.id)].slice(0, 12);
@@ -286,15 +333,25 @@ $('#envoyer').onclick = async () => {
     afficherSuivi([commande], commande.id);
     suivre();
   } catch (e) {
+    if (e.code === 'loin') return afficherVerif('loin');
+    if (e.code === 'position') return afficherVerif('introuvable');
+    vue(false);
     $('#panier-erreur').textContent = e.message;
+    if (['bloque', 'table_bloquee'].includes(e.code)) { panier = []; sauverPanier(); majBadges(); afficherBarre(); }
     if (['panier', 'ferme', 'pause', 'table'].includes(e.code)) chargerCarte().then(() => { if ($('#feuille-panier').open && panier.length) { afficherPanier(); $('#panier-erreur').textContent = e.message; } });
   } finally {
     envoiEnCours = false;
+    $('#verif').classList.remove('attente');
     bouton.textContent = 'Envoyer la commande';
     if (!envoye) bouton.disabled = !panier.length || !peutCommander();
+    ok.disabled = false;
+    if (ok.textContent === 'Vérification…' || ok.textContent === 'Envoi…') ok.textContent = VERIF.intro[2];
   }
-};
-$('#feuille-panier').addEventListener('close', () => { $('#envoyer').hidden = false; $('#panier-total').parentElement.hidden = false; });
+}
+// Premier envoi : on explique pourquoi avant que le téléphone ne demande. Déjà autorisé : on envoie directement.
+$('#envoyer').onclick = async () => { if (await dejaAutorise()) envoyer(); else afficherVerif('intro'); };
+$('#verif-ok').onclick = envoyer;
+$('#feuille-panier').addEventListener('close', () => { vue(false); $('#envoyer').hidden = false; $('#panier-total').parentElement.hidden = false; });
 
 // ── Suivi des commandes de ce téléphone ─────────────────────────────
 const TEXTES = {

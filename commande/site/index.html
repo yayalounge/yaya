@@ -69,6 +69,20 @@
     <p class="rappel">L’équipe valide votre commande, puis vous réglez au comptoir comme d’habitude.</p>
     <button class="btn btn--large" id="panier-fermer" type="button">Continuer</button>
   </div>
+  <div class="verif" id="verif" hidden>
+    <div class="corps">
+      <svg class="verif-icone" viewBox="0 0 48 48" aria-hidden="true"><path d="M24 44s14-12.6 14-24a14 14 0 1 0-28 0c0 11.4 14 24 14 24Z" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="24" cy="20" r="5" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>
+      <h2 id="verif-titre">Confirmez que vous êtes au Yäya</h2>
+      <p class="verif-texte" id="verif-texte"></p>
+      <div class="verif-aide" id="verif-aide" hidden></div>
+      <p class="verif-note">Votre position sert uniquement à cette vérification. Elle n’est ni conservée, ni partagée.</p>
+    </div>
+    <div class="actions">
+      <p class="erreur-msg" id="verif-erreur" role="alert"></p>
+      <button class="btn btn--plein btn--large" id="verif-ok" type="button">Autoriser et envoyer</button>
+      <button class="btn btn--large" id="verif-retour" type="button">Retour au panier</button>
+    </div>
+  </div>
 </dialog>
 
 <div class="toast" id="toast" role="status" aria-live="polite"></div>

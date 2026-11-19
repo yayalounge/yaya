@@ -6,6 +6,7 @@ import { CARTE, OPTIONS, PLAN } from './carte-reelle.mjs';
 // (outils/essai-local.mjs).
 
 export const SERVEUR = 'cle-serveur-de-test', GERANT = 'cle-gerant-de-test';
+export const AU_SALON = { lat: 48.92751, lng: 2.22291, acc: 35 };
 export const SOIR = Date.parse('2026-11-19T20:30:00Z'); // 21 h 30 à Paris
 
 export function projet({ heure = SOIR, horloge = null, reelle = false } = {}) {
@@ -28,7 +29,11 @@ export function projet({ heure = SOIR, horloge = null, reelle = false } = {}) {
   }
   remplir('equipe', [['Sam', '1234', true, '', '']]);
   const api = (action, q = {}, cle = SERVEUR) => p.ctx.api(cle, action, { _pin: '1234', ...q });
-  const post = (yayaCmd, ...args) => JSON.parse(p.ctx.doPost({ postData: { contents: JSON.stringify({ yayaCmd, args }) } }).getContent());
+  // Un téléphone au salon donne sa position (obligatoire) ; les essais qui veulent l'oublier passent pos: null.
+  const post = (yayaCmd, ...args) => {
+    if (yayaCmd === 'commander' && args[0] && typeof args[0] === 'object' && !('pos' in args[0])) args[0] = { ...args[0], pos: AU_SALON };
+    return JSON.parse(p.ctx.doPost({ postData: { contents: JSON.stringify({ yayaCmd, args }) } }).getContent());
+  };
   const k = (n) => p.ctx.webSigne_(n);
   const etat = () => p.ctx.readState_();
   const avancer = (ms) => { t += ms; };

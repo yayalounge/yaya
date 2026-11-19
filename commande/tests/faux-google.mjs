@@ -144,7 +144,10 @@ export function chargerProjet({ onglets, proprietes = {}, maintenant = () => Dat
       base64EncodeWebSafe: (o) => (Array.isArray(o) ? versBuffer(o) : Buffer.from(String(o))).toString('base64').replace(/\+/g, '-').replace(/\//g, '_'),
       base64Encode: (o) => (Array.isArray(o) ? versBuffer(o) : Buffer.from(String(o))).toString('base64'),
       sleep() {},
-      newBlob: (d) => ({ getDataAsString: () => String(d), getBytes: () => [...Buffer.from(String(d))] }),
+      newBlob: (d, type = 'text/plain', nom = '') => {
+        const buf = Array.isArray(d) ? versBuffer(d) : Buffer.from(String(d));
+        return { getDataAsString: () => buf.toString('utf8'), getBytes: () => octets(buf), getContentType: () => type, getName: () => nom };
+      },
     },
     HtmlService: {
       createTemplate: modele,

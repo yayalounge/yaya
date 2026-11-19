@@ -1,5 +1,5 @@
 // Fabrique apps-script/QrCode.gs : la bibliothèque qrcode (MIT) en un seul fichier pour Apps Script.
-// WEB_QR_.svg(texte) rend le dessin SVG d'un QR (utilisé par la page des QR à imprimer).
+// WEB_QR_.svg(texte) rend le dessin SVG d'un QR (page des QR à imprimer) ; WEB_QR_.matrice(texte) ses modules (PDF).
 import { build } from 'esbuild';
 import { writeFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
@@ -21,7 +21,7 @@ const ENCODEUR = `var __yayaTextEncoder = typeof TextEncoder !== 'undefined' ? T
 };`;
 export async function qrGoogle() {
   const r = await build({
-    stdin: { contents: "import QR from 'qrcode/lib/core/qrcode.js'; import Svg from 'qrcode/lib/renderer/svg-tag.js';\nexport function svg(t) { return Svg.render(QR.create(t, { errorCorrectionLevel: 'M' }), { margin: 0 }); }", resolveDir: ici('.'), loader: 'js' },
+    stdin: { contents: "import QR from 'qrcode/lib/core/qrcode.js'; import Svg from 'qrcode/lib/renderer/svg-tag.js';\nexport function svg(t) { return Svg.render(QR.create(t, { errorCorrectionLevel: 'M' }), { margin: 0 }); }\nexport function matrice(t) { var m = QR.create(t, { errorCorrectionLevel: 'M' }).modules; return { n: m.size, d: Array.prototype.join.call(m.data, '') }; }", resolveDir: ici('.'), loader: 'js' },
     bundle: true, format: 'iife', globalName: 'WEB_QR_', target: 'es2019', platform: 'neutral', mainFields: ['main'], legalComments: 'none', write: false, minify: true,
     // Apps Script n'a pas TextEncoder : la bibliothèque reçoit un encodeur UTF-8 écrit à la main.
     define: { TextEncoder: '__yayaTextEncoder' },

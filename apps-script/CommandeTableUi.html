@@ -17,6 +17,7 @@
 .webq-p.on{background:var(--warn);border-color:var(--warn);color:#fff}
 .webq-hb{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
 .webq-lieu{font-size:12px;font-weight:700;color:var(--warn);border:1px solid var(--warn);border-radius:99px;padding:1px 8px}
+.webq-son{font-size:12px;font-weight:700;color:var(--warn)}
 .webq-a.choix{grid-template-columns:1fr 1fr 1fr}
 @keyframes webqIn{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}
 </style>
@@ -28,7 +29,15 @@
   if (app && view) app.insertBefore(box, view);
   const vus = new Set();
   let premier = true, arme = null, armeT = null, rappel = 0;
-  const attente = () => (ST.web || []).filter(o => o.statut === 'nouvelle').sort((a, b) => a.ts - b.ts);
+  // Seulement la soirée en cours : une commande restée en attente à la fermeture ne revient pas le lendemain.
+  const attente = () => (ST.web || []).filter(o => o.statut === 'nouvelle' && ST.soiree && o.so === ST.soiree.id).sort((a, b) => a.ts - b.ts);
+  // Son : le navigateur ne l'autorise qu'après un toucher. L'appli ne l'active pas pour le gérant, ni après un
+  // rechargement sans toucher : on l'active au premier toucher, pour tous, et on le relance s'il s'est endormi.
+  const muet = () => { try { return !AC || AC.state !== 'running'; } catch (e) { return true; } };
+  const reveil = () => { try { AC = AC || new (window.AudioContext || window.webkitAudioContext)(); if (AC.state !== 'running') AC.resume(); } catch (e) {} };
+  // (on retire seulement l'avertissement : redessiner pendant un toucher avalerait le clic sur Valider)
+  document.addEventListener('pointerdown', () => { reveil(); setTimeout(() => { if (!muet()) box.querySelectorAll('.webq-son').forEach(x => x.remove()); }, 300); }, true);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden && AC && AC.state !== 'running') try { AC.resume(); } catch (e) {} });
   // Visible quand l'appli est ouverte sur le service (pas sur l'écran du code ou de prise de service).
   const visible = () => ROLE === 'gerant' || !document.getElementById('tabs').hidden;
 
@@ -42,7 +51,7 @@
     const verrous = Object.keys(ST.webVerrous || {}).filter(t => ST.webVerrous[t] === so).sort((a, b) => a - b);
     box.hidden = !visible() || (!l.length && !pause && !verrous.length);
     if (box.hidden) return;
-    box.innerHTML = `<div class="webq-h"><span><b>Commandes des tables</b> · ${l.length ? l.length + ' à valider' : 'aucune en attente'}</span>
+    box.innerHTML = `<div class="webq-h"><span><b>Commandes des tables</b> · ${l.length ? l.length + ' à valider' : 'aucune en attente'}${muet() ? ' · <span class="webq-son">son coupé : touchez l’écran</span>' : ''}</span>
       <span class="webq-hb">${verrous.map(t => `<button class="webq-p on" data-w="debloque" data-t="${+t}">Table ${+t} bloquée · débloquer</button>`).join('')}
       <button class="webq-p ${pause ? 'on' : ''}" data-w="pause">${pause ? 'QR en pause · reprendre' : 'Mettre les QR en pause'}</button></span></div>` +
       l.map(o => {

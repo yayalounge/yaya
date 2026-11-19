@@ -1,5 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import vm from 'node:vm';
+import { readFileSync } from 'node:fs';
 import { projet, SERVEUR, GERANT, AU_SALON } from './soiree.mjs';
 
 // Essais sur le vrai code de l'appli du gérant (apps-script/Code.gs branché + CommandeTable.gs), dans une copie
@@ -46,7 +48,7 @@ test('soirée complète : QR → « À valider » → validée = saisie normale 
   assert.equal(apres.tickets[0].t, 7);
   assert.equal(apres.tickets[0].qr, 1);
   assert.equal(apres.tables[7].lines.reduce((a, l) => a + l.p * l.q, 0), 44);
-  assert.equal(y.post('suivi', [cmd.id]).corps.commandes[0].statut, 'validee');
+  assert.equal(y.post('suivi', [cmd.id], 7, y.k(7)).corps.commandes[0].statut, 'validee');
 
   // Renvoi après coupure réseau : jamais validée deux fois.
   assert.equal(y.api('webOk', { id: st.web[0].id, _op: 'op-1' }).dup, true);
@@ -54,9 +56,9 @@ test('soirée complète : QR → « À valider » → validée = saisie normale 
 
   // Servie, puis encaissée : tout part dans Ventes et Lignes vendues, comme une commande au comptoir.
   y.api('done', { id: apres.tickets[0].id, _op: 'op-3' });
-  assert.equal(y.post('suivi', [cmd.id]).corps.commandes[0].statut, 'servie');
+  assert.equal(y.post('suivi', [cmd.id], 7, y.k(7)).corps.commandes[0].statut, 'servie');
   y.api('pay', { t: 7, kind: 'all', method: 'CB', _op: 'op-4' });
-  assert.equal(y.post('suivi', [cmd.id]).corps.commandes[0].statut, 'reglee');
+  assert.equal(y.post('suivi', [cmd.id], 7, y.k(7)).corps.commandes[0].statut, 'reglee');
   const ventes = y.onglet('ventes');
   assert.equal(ventes.length, 2);
   assert.equal(ventes[1][3], 7);
@@ -70,7 +72,7 @@ test('refus : rien n’est vendu, le client voit « refusée »', () => {
   y.api('scanIn', { lat: 48.92746, lng: 2.222845, acc: 10 });
   const cmd = y.post('commander', { t: 3, k: y.k(3), lines: [{ n: 'Frites', q: 1 }] }, appareil(2)).corps.commande;
   y.api('webNo', { id: y.etat().web[0].id, _op: 'n1' });
-  assert.equal(y.post('suivi', [cmd.id]).corps.commandes[0].statut, 'refusee');
+  assert.equal(y.post('suivi', [cmd.id], 3, y.k(3)).corps.commandes[0].statut, 'refusee');
   assert.equal(Object.keys(y.etat().tables).length, 0);
   assert.equal(y.etat().tickets.length, 0);
 });
@@ -118,7 +120,17 @@ test('point d’entrée public : seulement carte, commander, suivi ; rien de l�
   assert.equal(brut('x'.repeat(9000)).statut, 400);
   assert.equal(y.ctx.doPost({}).getContent().includes('requete'), true);
   // Le suivi ne montre que les commandes dont le téléphone connaît l'identifiant (20 caractères au hasard).
-  assert.deepEqual(y.post('suivi', ['*']).corps.commandes, []);
+  assert.deepEqual(y.post('suivi', ['*'], 1, y.k(1)).corps.commandes, []);
+  // Le suivi et l'envoi demandent un QR valable ; sans lui, rien n'est lu.
+  assert.equal(y.post('suivi', ['*']).statut, 403);
+  assert.equal(y.post('suivi', ['*'], 1, 'AAAAAAAAAAAA').statut, 403);
+  assert.equal(y.post('commander', { t: 1, k: 'AAAAAAAAAAAA', lines: [{ n: 'Frites', q: 1 }] }, appareil(3)).statut, 403);
+  // Fonctions de l'éditeur : appelables par google.script.run depuis n'importe quelle page, elles refusent un visiteur.
+  for (const f of ['supprimerSoireeEnCours', 'fusionPainBurger', 'mesurerVitesse', 'installer', 'afficherLiens', 'nouveauxLiens'])
+    assert.throws(() => y.ctx[f](), /Réservé à l’éditeur/, f);
+  y.cache.set('data', 'x');
+  y.ctx.onEdit();
+  assert.equal(y.cache.get('data'), 'x', 'onEdit sans vrai événement ne vide rien');
   // Les actions de l'équipe restent fermées sans la clé de l'appli.
   assert.throws(() => y.ctx.api('mauvaise-cle', 'webOk', { id: 'x' }), /Lien invalide/);
   // Le code de l'équipe est demandé comme pour toute action.
@@ -142,6 +154,9 @@ test('pages : panneau « À valider » dans YÄYA Service, QR à imprimer réser
   assert.match(service, /id = 'webq'|box\.id = 'webq'/);
   assert.match(service, /act\('webOk'/);
   assert.ok(service.indexOf('webq') < service.lastIndexOf('</body>'));
+  // Le panneau doit au moins se compiler (une erreur de syntaxe le ferait disparaître sans bruit).
+  const ui = readFileSync(new URL('../../apps-script/CommandeTableUi.html', import.meta.url), 'utf8');
+  for (const [, js] of ui.matchAll(/<script>([\s\S]*?)<\/script>/g)) assert.doesNotThrow(() => new vm.Script(js), 'script du panneau');
   assert.match(y.ctx.doGet({ parameter: { k: SERVEUR, app: 'qr' } }).getContent(), /Réservé au gérant/);
   assert.match(y.ctx.doGet({ parameter: { k: 'nimporte', app: 'qr' } }).getContent(), /Lien invalide/);
   const qr = y.ctx.doGet({ parameter: { k: GERANT, app: 'qr' } }).getContent();
@@ -162,7 +177,10 @@ test('farceurs : loin du salon refusé, « fausse commande » bloque le téléph
   assert.equal(loin.corps.erreur, 'loin');
   // Position refusée, ou trop imprécise : refusée aussi (obligatoire), avec un code que la page explique.
   assert.equal(cmd(4, appareil(51), null).corps.erreur, 'position');
-  assert.equal(cmd(4, appareil(51), { lat: 48.9275, lng: 2.2229, acc: 5000 }).corps.erreur, 'position');
+  // iPhone sans « Position exacte » (précision de quelques km) : on demande la position exacte, pas « loin ».
+  assert.equal(cmd(4, appareil(51), { lat: 48.9275, lng: 2.2229, acc: 5000 }).corps.erreur, 'imprecis');
+  assert.equal(cmd(4, appareil(51), { lat: 48.95, lng: 2.25, acc: 3500 }).corps.erreur, 'imprecis');
+  assert.equal(cmd(4, appareil(51), { lat: 48.8566, lng: 2.3522, acc: 3500 }).corps.erreur, 'loin', 'Paris : loin même dans le pire cas');
   // Sur place : passe. Rien d'autre que « sur place » n'est gardé.
   assert.equal(cmd(4, appareil(51), { lat: 48.9275, lng: 2.2229, acc: 25 }).statut, 201);
   assert.equal(cmd(4, appareil(52), { lat: 48.9273, lng: 2.2227, acc: 60 }).statut, 201);
@@ -182,13 +200,17 @@ test('farceurs : loin du salon refusé, « fausse commande » bloque le téléph
   assert.match(y.api('webNo', { id: faux2.id, faux: true }).msg, /Table 4 verrouillée/);
   assert.equal(cmd(4, appareil(54)).corps.erreur, 'table_bloquee');
   assert.equal(cmd(5, appareil(54)).statut, 201, 'les autres tables commandent normalement');
-  // Débloquer depuis le panneau.
+  // Débloquer depuis le panneau : les fausses commandes d'avant ne comptent plus, une seule nouvelle ne reverrouille pas.
   y.api('webDebloque', { t: 4 });
+  y.avancer(1000);
   assert.equal(cmd(4, appareil(54)).statut, 201);
+  const faux3 = y.etat().web.find((o) => o.app === appareil(54) && o.t === 4);
+  assert.match(y.api('webNo', { id: faux3.id, faux: true }).msg, /ne peut plus commander/);
+  assert.equal(cmd(4, appareil(55)).statut, 201, 'table 4 toujours ouverte');
   // Un simple « Refuser » (rupture, erreur) ne bloque personne.
   const normal = y.etat().web.find((o) => o.t === 5);
   y.api('webNo', { id: normal.id });
-  assert.equal(cmd(5, appareil(54)).statut, 201);
+  assert.equal(cmd(5, appareil(56)).statut, 201);
 });
 
 test('QR en PDF : gérant seulement, 20 tables sur 5 pages A4, envoyés par mail à l’adresse du récap', async () => {
@@ -208,4 +230,61 @@ test('QR en PDF : gérant seulement, 20 tables sur 5 pages A4, envoyés par mail
   const [, mail] = y.journal.find(([k]) => k === 'mail');
   assert.equal(mail.to, 'gerant@example.com');
   assert.equal(mail.attachments[0].getContentType(), 'application/pdf');
+});
+
+test('soirée fermée avec une commande en attente : elle ne revient pas le lendemain', () => {
+  const y = projet();
+  y.api('scanIn', { lat: 48.92746, lng: 2.222845, acc: 10 });
+  const cmd = y.post('commander', { t: 7, k: y.k(7), lines: [{ n: 'Frites', q: 1 }] }, appareil(1)).corps.commande;
+  assert.equal(cmd.numero, 1);
+  const id = y.etat().web[0].id;
+  // Lendemain : nouvelle soirée (même effet qu'une fermeture puis une ouverture).
+  const st = y.etat(); st.soiree.id = 'soiree-du-lendemain'; st.rev++; y.ctx.writeState_(st);
+  assert.equal(y.post('suivi', [cmd.id], 7, y.k(7)).corps.commandes[0].statut, 'refusee', 'le téléphone arrête d’attendre');
+  assert.match(y.api('webOk', { id }).msg, /soirée précédente : retirée/);
+  assert.equal(y.etat().tickets.length, 0);
+  assert.equal(Object.keys(y.etat().tables).length, 0, 'aucune table ouverte avec la commande d’hier');
+  // Les numéros repartent de 1.
+  y.cache.clear();
+  assert.equal(y.post('commander', { t: 7, k: y.k(7), lines: [{ n: 'Frites', q: 1 }] }, appareil(2)).corps.commande.numero, 1);
+});
+
+test('réponse perdue : le renvoi avec le même numéro d’envoi rend la même commande, sans doublon', () => {
+  const y = projet();
+  y.api('scanIn', { lat: 48.92746, lng: 2.222845, acc: 10 });
+  const corps = { t: 9, k: y.k(9), envoi: 'envoi-de-test-0000000001', lines: [{ n: 'Frites', q: 1 }] };
+  const a = y.post('commander', corps, appareil(1)), b = y.post('commander', corps, appareil(1));
+  assert.equal(a.statut, 201);
+  assert.equal(b.statut, 201, JSON.stringify(b));
+  assert.equal(a.corps.commande.id, b.corps.commande.id);
+  assert.equal(y.etat().web.length, 1);
+  // Un autre panier (autre numéro d'envoi) du même téléphone attend 30 s, comme avant.
+  assert.equal(y.post('commander', { ...corps, envoi: 'envoi-de-test-0000000002' }, appareil(1)).corps.erreur, 'trop_rapide');
+});
+
+test('faux QR en masse : ne coupe pas les commandes des vraies tables', () => {
+  const y = projet();
+  y.api('scanIn', { lat: 48.92746, lng: 2.222845, acc: 10 });
+  for (let i = 0; i < 200; i++) assert.equal(y.post('commander', { t: 7, k: 'AAAAAAAAAAA' + (i % 10), lines: [{ n: 'Frites', q: 1 }] }, appareil(300 + i)).statut, 403);
+  // Un vrai QR photographié et rejoué en boucle n'épuise que sa propre table.
+  let occupe = 0;
+  for (let i = 0; i < 30; i++) if (y.post('commander', { t: 3, k: y.k(3), lines: [{ n: 'Caviar', q: 1 }] }, appareil(600 + i)).corps.erreur === 'occupe') occupe++;
+  assert.ok(occupe > 0, 'la table 3 est freinée');
+  assert.equal(y.post('commander', { t: 7, k: y.k(7), lines: [{ n: 'Frites', q: 1 }] }, appareil(1)).statut, 201, 'la table 7 commande');
+  // La carte seule reste visible sans QR (lecture seule).
+  assert.equal(y.post('carte', 0, '').statut, 200);
+});
+
+test('commande traitée : l’état ne garde que ce que le téléphone affiche', () => {
+  const y = projet();
+  y.api('scanIn', { lat: 48.92746, lng: 2.222845, acc: 10 });
+  y.post('commander', { t: 7, k: y.k(7), lines: [{ n: 'Soft', sel: { soft: 'Red Bull' }, q: 2 }] }, appareil(1));
+  const o0 = y.etat().web[0];
+  assert.ok(o0.src && o0.app);
+  y.api('webOk', { id: o0.id });
+  const o = y.etat().web[0];
+  assert.equal(o.statut, 'validee');
+  assert.equal(o.src, undefined);
+  assert.equal(o.app, undefined);
+  assert.deepEqual(o.lines, [{ n: 'Soft', d: ['Red Bull'], q: 2 }]);
 });

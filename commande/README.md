@@ -29,10 +29,19 @@ commandes QR vivent dans l'état de l'appli (`st.web`), gardées 8 h.
   une autre table est refusé. `WEB_QR_VERSION` change toutes les signatures (il faut alors réimprimer).
 - Commandes seulement pendant le service (un membre a pris son service) et hors pause.
 - Prix recalculés par l'appli (`priceLine`), options obligatoires comme dans Service. Aucun texte libre du client.
-- Plafonds avant toute lecture du Sheets : 30 s entre deux commandes d'un même téléphone, 30 commandes par minute
-  pour tout le salon, 600 appels par minute ; au plus 3 commandes en attente par table, 20 lignes, 30 articles,
-  10 du même, 300 € par commande.
-- Valider est dédoublonné (`_op`) : une coupure réseau ne crée jamais deux tickets.
+- Signature du QR vérifiée avant tout compteur : un faux QR (même 1 000 de suite) ne bloque personne.
+- Plafonds avant toute lecture du Sheets : 240 appels et 12 envois par table et par minute, 30 s entre deux commandes
+  d'un même téléphone, 30 commandes acceptées par minute pour tout le salon ; au plus 3 commandes en attente par
+  table, 20 lignes, 30 articles, 10 du même, 300 € par commande. Sans QR valable, seule la carte s'affiche.
+- Pas de doublon : le téléphone renvoie le même numéro d'envoi après une coupure réseau (la commande déjà créée lui
+  est rendue), et Valider est dédoublonné (`_op`).
+- Une commande restée en attente à la fermeture ne revient pas le lendemain : le panneau ne montre que la soirée en
+  cours, Valider la retire sans rien envoyer, le téléphone la voit « refusée ».
+- iPhone ou Android en position approximative (précision au-delà de 1,5 km) : la page demande d'activer la position
+  exacte, avec le chemin dans les réglages.
+- Fonctions de Code.gs appelables depuis le web par `google.script.run` (installer, supprimerSoireeEnCours,
+  fusionPainBurger, mesurerVitesse, afficherLiens, nouveauxLiens) : `editeurSeul_()` les arrête si l'appel ne vient
+  pas du compte du gérant ; `onEdit` ignore un appel sans vrai événement.
 - Contre les farceurs (QR photographié, commandes depuis chez eux) : la **position du téléphone est obligatoire**
   à l'envoi (GPS du téléphone, un VPN n'y change rien). Loin du lounge (rayon des Paramètres, 300 m mini) ou position
   refusée : pas de commande, et la page explique comment l'autoriser. Rien d'autre que « sur place » n'est gardé.

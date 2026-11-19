@@ -28,6 +28,11 @@ if (!/^[A-Za-z0-9_-]{16,40}$/.test(appareil)) {
   appareil = Array.from(crypto.getRandomValues(new Uint8Array(24)), (b) => 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_'[b & 63]).join('');
   ecrire('yaya-appareil', appareil);
 }
+const jeton = () => Array.from(crypto.getRandomValues(new Uint8Array(20)), (b) => 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_'[b & 63]).join('');
+// Numéro d'envoi : le même tant que le panier ne change pas. Si la réponse se perd (réseau), le renvoi rend la
+// commande déjà créée au lieu d'en créer une deuxième (gardé aussi si la page est rechargée).
+const CLE_ENVOI = `yaya-envoi-${table}`;
+let envoiId = (() => { const e = lire(CLE_ENVOI, null); return e && Date.now() - e.le < 600_000 && /^[A-Za-z0-9_-]{20}$/.test(e.id) ? e.id : null; })();
 
 // ── État ────────────────────────────────────────────────────────────
 // donnees = { table, etat: {ouvert, soiree, pause}, carte: [{nom, articles: [{n, p, sub, o, photo}]}], options, relecture, limites }
@@ -37,7 +42,7 @@ const CLE_PANIER = `yaya-panier-${table}`;
 // Une ligne : { n, sel: { groupe: choix }, q }. Le prix est recalculé par l'appli du gérant à l'envoi.
 let panier = (() => { const p = lire(CLE_PANIER, null); return p && Date.now() - p.le < 3 * 3600_000 && Array.isArray(p.lignes) ? p.lignes : []; })();
 let mesCommandes = lire('yaya-commandes', []).filter((c) => c && Date.now() - c.le < 12 * 3600_000);
-const sauverPanier = () => ecrire(CLE_PANIER, { le: Date.now(), lignes: panier });
+const sauverPanier = () => { envoiId = null; ecrire(CLE_ENVOI, null); ecrire(CLE_PANIER, { le: Date.now(), lignes: panier }); };
 const peutCommander = () => !!(donnees?.table && donnees.etat.ouvert);
 const cleLigne = (l) => l.n + '|' + Object.keys(l.sel).sort().map((g) => g + '=' + l.sel[g]).join('|');
 
@@ -277,12 +282,18 @@ const VERIF = {
   intro: ['Confirmez que vous êtes au Yäya', 'Pour éviter les fausses commandes, seules les personnes présentes au salon peuvent commander depuis leur table. Votre téléphone va vous demander l’accès à votre position.', 'Autoriser et envoyer'],
   refus: ['Position refusée', 'Sans elle, la commande ne peut pas partir de votre téléphone. Autorisez-la en quelques secondes :', 'Réessayer'],
   introuvable: ['Position introuvable', 'Votre téléphone n’a pas donné de position. Vérifiez que la localisation est activée, puis réessayez.', 'Réessayer'],
+  imprecis: ['Activez la position exacte', 'Votre téléphone ne donne qu’une position approximative (à quelques kilomètres près) : impossible de savoir si vous êtes au salon. Activez la position exacte :', 'Réessayer'],
   loin: ['Vous semblez loin du Yäya', 'Les commandes à table se font sur place. Si vous êtes bien au salon, réessayez près d’une fenêtre, ou commandez au comptoir.', 'Réessayer'],
 };
 function aideReglages() {
   return iphone
     ? [h('b', {}, 'Sur iPhone'), h('ol', {}, h('li', {}, 'Réglages › Confidentialité et sécurité › Service de localisation : activé.'), h('li', {}, 'Plus bas, « Sites Safari » (ou votre navigateur) › « Lorsque l’app est active ».'), h('li', {}, 'Revenez ici, rechargez la page et touchez Réessayer.'))]
     : [h('b', {}, 'Sur Android'), h('ol', {}, h('li', {}, 'Touchez l’icône à gauche de l’adresse, en haut de l’écran.'), h('li', {}, 'Autorisations › Position › Autoriser.'), h('li', {}, 'Vérifiez aussi que la localisation du téléphone est activée, puis touchez Réessayer.'))];
+}
+function aidePrecise() {
+  return iphone
+    ? [h('b', {}, 'Sur iPhone'), h('ol', {}, h('li', {}, 'Réglages › Confidentialité et sécurité › Service de localisation.'), h('li', {}, '« Sites Safari » (ou votre navigateur) › activez « Position exacte ».'), h('li', {}, 'Revenez ici et touchez Réessayer.'))]
+    : [h('b', {}, 'Sur Android'), h('ol', {}, h('li', {}, 'Touchez l’icône à gauche de l’adresse, en haut de l’écran.'), h('li', {}, 'Autorisations › Position : choisissez « Position exacte » (pas « approximative »).'), h('li', {}, 'Revenez ici et touchez Réessayer.'))];
 }
 function vue(verif) {
   $('#panier-corps').hidden = verif; $('#panier-actions').hidden = verif; $('#verif').hidden = !verif;
@@ -291,8 +302,9 @@ function afficherVerif(cas, message) {
   const [titre, texte, bouton] = VERIF[cas];
   $('#verif-titre').textContent = titre;
   $('#verif-texte').textContent = message || texte;
-  $('#verif-aide').hidden = cas !== 'refus';
+  $('#verif-aide').hidden = cas !== 'refus' && cas !== 'imprecis';
   if (cas === 'refus') $('#verif-aide').replaceChildren(...aideReglages());
+  if (cas === 'imprecis') $('#verif-aide').replaceChildren(...aidePrecise());
   $('#verif-ok').textContent = bouton;
   $('#verif-ok').disabled = false;
   $('#verif-erreur').textContent = '';
@@ -316,7 +328,8 @@ async function envoyer() {
     const { pos, erreur } = await position();
     if (!pos) return afficherVerif(erreur === 'refus' ? 'refus' : 'introuvable');
     ok.textContent = bouton.textContent = 'Envoi…';
-    const { commande } = await api('commander', { t: donnees.table, k, pos, lines: panier.map((l) => ({ n: l.n, sel: l.sel, q: l.q })) }, appareil);
+    if (!envoiId) { envoiId = jeton(); ecrire(CLE_ENVOI, { id: envoiId, le: Date.now() }); }
+    const { commande } = await api('commander', { t: donnees.table, k, pos, envoi: envoiId, lines: panier.map((l) => ({ n: l.n, sel: l.sel, q: l.q })) }, appareil);
     envoye = true;
     vue(false);
     panier = [];
@@ -334,10 +347,11 @@ async function envoyer() {
     suivre();
   } catch (e) {
     if (e.code === 'loin') return afficherVerif('loin');
+    if (e.code === 'imprecis') return afficherVerif('imprecis');
     if (e.code === 'position') return afficherVerif('introuvable');
     vue(false);
     $('#panier-erreur').textContent = e.message;
-    if (['bloque', 'table_bloquee'].includes(e.code)) { panier = []; sauverPanier(); majBadges(); afficherBarre(); }
+    if (['bloque', 'table_bloquee'].includes(e.code)) { panier = []; sauverPanier(); majBadges(); afficherBarre(); afficherPanier(); $('#panier-erreur').textContent = e.message; }
     if (['panier', 'ferme', 'pause', 'table'].includes(e.code)) chargerCarte().then(() => { if ($('#feuille-panier').open && panier.length) { afficherPanier(); $('#panier-erreur').textContent = e.message; } });
   } finally {
     envoiEnCours = false;
@@ -374,9 +388,9 @@ function afficherSuivi(commandes, neuve) {
 }
 async function suivre() {
   clearTimeout(suivre.t);
-  if (!mesCommandes.length) return;
+  if (!mesCommandes.length || !table || !k) return;
   try {
-    const { commandes, etat } = await api('suivi', mesCommandes.map((c) => c.id));
+    const { commandes, etat } = await api('suivi', mesCommandes.map((c) => c.id), table, k);
     const avant = new Map(suivies.map((c) => [c.id, c.statut]));
     afficherSuivi(commandes);
     for (const c of commandes) if (avant.has(c.id) && avant.get(c.id) !== c.statut && c.statut !== 'reglee') { toast(`Commande n° ${c.numero} : ${TEXTES[c.statut][0].toLowerCase()}`); navigator.vibrate?.(30); }

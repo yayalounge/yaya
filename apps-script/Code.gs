@@ -776,6 +776,7 @@ function purgeSoiree_(id) {
 }
 // À lancer depuis l'éditeur Apps Script (ou le menu) : supprime la soirée en cours si elle a été ouverte pour un test.
 function supprimerSoireeEnCours() {
+  editeurSeul_(); // commande à table : appelable depuis le web, réservé à l'éditeur (CommandeTable.gs)
   var lock = LockService.getScriptLock(); lock.waitLock(20000);
   try {
     var st = readState_();
@@ -935,7 +936,7 @@ var CANCEL_FREE_MS_ = 15 * 60000, MSG_MAX_ = 60;
 // Annulation à l'encaissement (bouton à côté de Promotion) : une raison et une explication, toujours validées par le gérant.
 var ANNUL_OFFERT_ = 'Offert (geste, ami…)', ANNUL_PARTI_ = 'Client parti sans payer', ANNUL_RAISONS_ = ['Erreur de commande', 'Pas préparé (rupture, oubli)', 'Produit raté', 'Client mécontent', ANNUL_PARTI_, ANNUL_OFFERT_];
 var RECOUNT_SEUIL_ = 2;
-var CODE_V_ = 34; // v34 · commande à table
+var CODE_V_ = 35; // v35 · commande à table
 
 function chat_(st) { return st.chat || (st.chat = { msgs: [], seenG: 0, seenS: 0 }); }
 // Message du fil : gardé dans l'état (affichage en direct), archivé dans l'onglet Messages.
@@ -1667,7 +1668,7 @@ function mergeAchat_(from, to) {
   } finally { lock.releaseLock(); }
 }
 // À lancer une fois depuis l'éditeur : « Pain burger » acheté le 14/11 = Pain brioché.
-function fusionPainBurger() { var n = mergeAchat_('Pain burger', 'Pain brioché'); rcInvalidateAll_(); console.log(n + ' achat(s) rattaché(s) à Pain brioché.'); return n; }
+function fusionPainBurger() { editeurSeul_(); var n = mergeAchat_('Pain burger', 'Pain brioché'); rcInvalidateAll_(); console.log(n + ' achat(s) rattaché(s) à Pain brioché.'); return n; }
 
 function delAchat_(p) {
   var lock = LockService.getScriptLock();
@@ -3362,12 +3363,14 @@ function onOpen() {
     .addToUi();
 }
 function onEdit(e) {
+  if (!e || !e.range || typeof e.range.getSheet !== 'function') return; // commande à table : pas d'appel depuis le web
   CacheService.getScriptCache().removeAll(['data', 'team']);
   try { var n = e && e.range && e.range.getSheet().getName(), ks = rcKeys_().filter(function (k) { return !n || SH[k] === n; }); ks.forEach(rcDirty_); rcFlush_(); } catch (x) { try { rcInvalidateAll_(); } catch (y) {} }
 }
 
 // Diagnostic (éditeur) : temps réel de chaque appel côté Google, sans rien modifier.
 function mesurerVitesse() {
+  editeurSeul_(); // commande à table : appelable depuis le web, réservé à l'éditeur (CommandeTable.gs)
   var K = props_().getProperty('KEY_GERANT'), out = [];
   var T = function (n, f) { var t = Date.now(); try { f(); out.push(n + ' ' + (Date.now() - t) + ' ms'); } catch (e) { out.push(n + ' ERREUR ' + e.message); } };
   T('ouverture classeur', function () { SpreadsheetApp.getActive().getSheets().length; });
@@ -3388,6 +3391,7 @@ function mesurerVitesse() {
   return out;
 }
 function installer() {
+  editeurSeul_(); // commande à table : appelable depuis le web, réservé à l'éditeur (CommandeTable.gs)
   var ss = SpreadsheetApp.getActive();
   ss.setSpreadsheetTimeZone(TZ);
   try { ss.setSpreadsheetLocale('fr_FR'); } catch (e) {}
@@ -3460,6 +3464,7 @@ function formats_(key, sh) {
 }
 
 function afficherLiens() {
+  editeurSeul_(); // commande à table : appelable depuis le web, réservé à l'éditeur (CommandeTable.gs)
   var url = baseUrl_(), p = props_().getProperties();
   if (!url) {
     SpreadsheetApp.getUi().alert('L’appli n’est pas encore déployée. Dans Apps Script : Déployer > Nouveau déploiement > Application Web, puis relance ce menu.');
@@ -3473,6 +3478,7 @@ function afficherLiens() {
   SpreadsheetApp.getUi().showModalDialog(HtmlService.createHtmlOutput(h).setWidth(460).setHeight(300), 'YÄYA · liens');
 }
 function nouveauxLiens() {
+  editeurSeul_(); // commande à table : appelable depuis le web, réservé à l'éditeur (CommandeTable.gs)
   var ui = SpreadsheetApp.getUi();
   if (ui.alert('Changer les liens ?', 'Les anciens liens service et gérant ne marcheront plus.', ui.ButtonSet.YES_NO) !== ui.Button.YES) return;
   props_().setProperty('KEY_SERVEUR', newKey_(24));

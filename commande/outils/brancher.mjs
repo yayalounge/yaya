@@ -1,6 +1,6 @@
 // Fabrique apps-script/Code.gs (l'appli du gérant, branchée sur la commande à table) à partir de la copie
 // apps-script/Code.origine.gs, prise dans son projet Apps Script le 19/11/2026 (v33).
-// Trois ajouts, chacun marqué « commande à table » ; tout le reste de son code est identique, octet pour octet.
+// Ajouts, chacun marqué « commande à table » (actions, doGet, panneau, gardes des fonctions de l'éditeur, version) ; tout le reste de son code est identique, octet pour octet.
 //   node outils/brancher.mjs   (s'arrête si un repère a changé : on ne branche jamais à l'aveugle)
 import { readFile, writeFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
@@ -30,7 +30,16 @@ export function brancher(code) {
   if (html.split('</body>').length !== 2 || html.includes('webUi_')) throw new Error('INDEX_HTML inattendu');
   lignes[i] = `var INDEX_HTML = ${JSON.stringify(html.replace('</body>', '<?!= webUi_() ?>\n</body>'))};`;
   code = lignes.join('\n');
-  remplacer('var CODE_V_ = 33;', 'var CODE_V_ = 34; // v34 · commande à table', 'version');
+  // google.script.run peut appeler depuis le web toute fonction dont le nom ne finit pas par « _ » (même la page
+  // « Lien invalide ») : celles de l'éditeur et du menu du Sheets s'arrêtent si l'appel ne vient pas du gérant.
+  const garde = '  editeurSeul_(); // commande à table : appelable depuis le web, réservé à l\'éditeur (CommandeTable.gs)\n';
+  for (const f of ['supprimerSoireeEnCours', 'mesurerVitesse', 'installer', 'afficherLiens', 'nouveauxLiens'])
+    remplacer(`function ${f}() {\n`, `function ${f}() {\n${garde}`, f);
+  remplacer('function fusionPainBurger() { var n', 'function fusionPainBurger() { editeurSeul_(); var n', 'fusionPainBurger');
+  // onEdit appelé depuis le web (sans vrai événement) viderait tous les caches : on ne garde que les vrais événements.
+  remplacer('function onEdit(e) {\n',
+    "function onEdit(e) {\n  if (!e || !e.range || typeof e.range.getSheet !== 'function') return; // commande à table : pas d'appel depuis le web\n", 'onEdit');
+  remplacer('var CODE_V_ = 33;', 'var CODE_V_ = 35; // v35 · commande à table', 'version');
   return code;
 }
 

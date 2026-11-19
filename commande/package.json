@@ -1,0 +1,16 @@
+{
+  "name": "yaya-commande",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "test": "node --test tests/*.test.mjs",
+    "brancher": "node outils/brancher.mjs && node outils/qr-google.mjs"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.10",
+    "qrcode": "^1.5.4"
+  }
+}

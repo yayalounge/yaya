@@ -1,0 +1,12 @@
+{
+  "name": "YÄYA Cuisine",
+  "short_name": "Cuisine",
+  "start_url": "/cuisine/",
+  "scope": "/cuisine/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#050505",
+  "theme_color": "#050505",
+  "lang": "fr",
+  "icons": [{ "src": "/assets/icone-180.png", "sizes": "180x180", "type": "image/png" }]
+}

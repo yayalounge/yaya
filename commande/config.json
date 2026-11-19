@@ -1,0 +1,37 @@
+{
+  "$aide": "Réglages de la commande à table. Secrets (YAYA_SECRET, COMPTOIR_CODE) : variables Netlify seulement, jamais ici. Voir docs/mise-en-ligne.md.",
+  "commerce": "Yäya Lounge",
+  "carte": {
+    "url": "https://fidelite.kerrolabs.fr/api/menu/yaya-lounge",
+    "delaiMs": 5000,
+    "cacheSecondes": 30
+  },
+  "photosSite": {
+    "base": "https://yaya-lounge.fr/photos/",
+    "fichiers": ["coeur-coulant", "crepe-crunchy", "crepe-nutella", "crepe-oreo", "crepe-sugar", "frites", "grandes-frites", "mango-juice", "milkshake-caramel", "milkshake-fraise", "milkshake-oreo", "mojito-yaya", "pasta-carbo", "pasta-salmon", "yaya-smash-xl", "yaya-smash"]
+  },
+  "fidelite": "https://fidelite.kerrolabs.fr/c/yaya-lounge",
+  "site": "https://yaya-lounge.fr",
+  "tables": 20,
+  "horaires": {
+    "fuseau": "Europe/Paris",
+    "ouverture": "17:00",
+    "fermeture": "02:00",
+    "changementDeJour": "06:00"
+  },
+  "rubriquesMajeurs": ["chicha", "chichas"],
+  "limites": {
+    "lignesParCommande": 20,
+    "articlesParCommande": 30,
+    "quantiteParArticle": 10,
+    "totalMaxCentimes": 30000,
+    "remarque": 80,
+    "commandesEnAttenteParTable": 3,
+    "secondesEntreDeuxCommandesParAppareil": 30,
+    "commandesParHeureParReseau": 60,
+    "essaisCodeParQuartDHeure": 8
+  },
+  "conservationJours": 90,
+  "sessionComptoirHeures": 16,
+  "relectureSecondes": { "comptoir": 8, "client": 10 }
+}

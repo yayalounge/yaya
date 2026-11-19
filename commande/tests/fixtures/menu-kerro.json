@@ -1,0 +1,202 @@
+{
+ "merchant": {
+  "name": "Yäya Lounge",
+  "slug": "yaya-lounge"
+ },
+ "updatedAt": "2026-11-19T09:00:00.000Z",
+ "sections": [
+  {
+   "id": "formules",
+   "title": "Formules",
+   "items": [
+    {
+     "name": "Menu Smash",
+     "description": "Yäya Smash, frites et soft.",
+     "price": 13,
+     "photo": null
+    },
+    {
+     "name": "Menu Smash XL",
+     "description": "Double smash, frites et soft.",
+     "price": 15,
+     "photo": null
+    },
+    {
+     "name": "Duo Pasta",
+     "description": "Pâtes carbonara ou saumon, et un soft.",
+     "price": 11,
+     "photo": null
+    },
+    {
+     "name": "Trio Pasta",
+     "description": "Pâtes, soft et dessert au choix.",
+     "price": 16,
+     "photo": null
+    },
+    {
+     "name": "Pause Gourmande",
+     "description": "Dessert au choix et un mocktail.",
+     "price": 11,
+     "photo": null
+    }
+   ]
+  },
+  {
+   "id": "chichas",
+   "title": "Chichas",
+   "items": [
+    {
+     "name": "Chicha tête plate",
+     "description": null,
+     "price": 12,
+     "photo": null
+    },
+    {
+     "name": "Chicha Quasar",
+     "description": null,
+     "price": 20,
+     "photo": null
+    },
+    {
+     "name": "Goûts",
+     "description": "Hawaii · Love 66 · Mangana · Mi Amor · Menthe · Menthe sucrée",
+     "price": null,
+     "photo": null
+    }
+   ]
+  },
+  {
+   "id": "plats",
+   "title": "Plats",
+   "items": [
+    {
+     "name": "Yäya Smash",
+     "description": "Smash burger.",
+     "price": 7,
+     "photo": null
+    },
+    {
+     "name": "Yäya Smash XL",
+     "description": "Double smash burger.",
+     "price": 9,
+     "photo": null
+    },
+    {
+     "name": "Pasta Carbo",
+     "description": "Pâtes carbonara.",
+     "price": 8,
+     "photo": null
+    },
+    {
+     "name": "Pasta Salmon",
+     "description": "Pâtes au saumon.",
+     "price": 9,
+     "photo": null
+    },
+    {
+     "name": "Frites",
+     "description": null,
+     "price": 4,
+     "photo": null,
+     "hidePhoto": true
+    },
+    {
+     "name": "Grandes frites",
+     "description": null,
+     "price": 6,
+     "photo": null
+    }
+   ]
+  },
+  {
+   "id": "desserts",
+   "title": "Desserts",
+   "items": [
+    {
+     "name": "Crêpe Sugar",
+     "description": "Crêpe au sucre.",
+     "price": 5,
+     "photo": null
+    },
+    {
+     "name": "Crêpe Nutella",
+     "description": "Crêpe au Nutella.",
+     "price": 6,
+     "photo": null
+    },
+    {
+     "name": "Crêpe Oreo",
+     "description": "Nutella, Oreo.",
+     "price": 7,
+     "photo": null
+    },
+    {
+     "name": "Crêpe Crunchy",
+     "description": "Nutella, M&M's.",
+     "price": 7,
+     "photo": null
+    },
+    {
+     "name": "Cœur coulant",
+     "description": "Fondant au chocolat.",
+     "price": 6,
+     "photo": null
+    }
+   ]
+  },
+  {
+   "id": "mocktails",
+   "title": "Mocktails",
+   "items": [
+    {
+     "name": "Mojito Yäya",
+     "description": "Classique, passion ou fraise.",
+     "price": 7,
+     "photo": null
+    },
+    {
+     "name": "Mango juice",
+     "description": null,
+     "price": 7,
+     "photo": null
+    }
+   ]
+  },
+  {
+   "id": "boissons-chaudes",
+   "title": "Boissons chaudes",
+   "items": [
+    {
+     "name": "Café",
+     "description": null,
+     "price": 2.5,
+     "photo": null
+    },
+    {
+     "name": "Thé à la menthe",
+     "description": null,
+     "price": 5,
+     "photo": null
+    }
+   ]
+  },
+  {
+   "id": "boissons-fraiches",
+   "title": "Boissons fraîches",
+   "items": [
+    {
+     "name": "Softs",
+     "description": "Coca-Cola · Coca-Cola Cherry · Hawaï · Ice Tea pêche · Ice Tea pastèque menthe · Oasis Tropical · Oasis pomme cassis framboise · Perrier · Red Bull",
+     "price": 5,
+     "photo": null
+    },
+    {
+     "name": "Sirop à l'eau ou diabolo",
+     "description": "Fraise · Melon · Kiwi · Pêche · Passion · Citron · Menthe",
+     "price": 5,
+     "photo": null
+    }
+   ]
+  }
+ ]
+}

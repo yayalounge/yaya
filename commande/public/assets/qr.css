@@ -1,0 +1,19 @@
+.entete-qr { display: flex; flex-wrap: wrap; align-items: center; gap: 1rem 1.5rem; padding: 1.2rem; border-bottom: 1px solid var(--trait); }
+.entete-qr p { flex: 1 1 20rem; color: var(--texte); font-size: 0.9rem; }
+.retour { color: var(--texte); text-decoration: none; }
+.planche { display: grid; grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr)); gap: 1rem; padding: 1.2rem; }
+.chevalet { aspect-ratio: 105 / 148; display: flex; flex-direction: column; align-items: center; justify-content: space-between; padding: 8% 10%; background: #050505; border: 1px solid var(--trait-fort); border-radius: 10px; color: #f2f1ee; text-align: center; }
+.chevalet .logo { width: 46%; }
+.chevalet .num { font-size: 0.7rem; letter-spacing: 0.3em; text-transform: uppercase; color: #8a8985; }
+.chevalet .num b { display: block; font-size: 3.2rem; font-weight: 300; letter-spacing: 0; color: #f2f1ee; line-height: 1.05; font-stretch: 110%; }
+.chevalet .code { width: 62%; padding: 4%; background: #f2f1ee; border-radius: 8px; }
+.chevalet .code svg { width: 100%; height: auto; }
+.chevalet p { font-size: 0.78rem; letter-spacing: 0.18em; text-transform: uppercase; }
+@media print {
+  @page { size: A4; margin: 0; }
+  html, body { background: #050505; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .entete-qr { display: none; }
+  .planche { grid-template-columns: 105mm 105mm; grid-auto-rows: 148.5mm; gap: 0; padding: 0; }
+  .chevalet { aspect-ratio: auto; height: 148.5mm; border-radius: 0; border: 0.2mm dashed #444; break-inside: avoid; }
+  .chevalet .num b { font-size: 34pt; }
+}

@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<!-- YÄYA · commande à table : QR des tables à imprimer (lien gérant + « &app=qr »). Voir CommandeTable.gs. -->
+<html lang="fr">
+<head>
+<base target="_top">
+<meta charset="utf-8">
+<style>
+:root{--noir:#050505;--blanc:#f2f1ee;--texte:#3a3936;--trait:#d9d8d3}
+*{box-sizing:border-box}
+body{margin:0;font:400 15px/1.5 system-ui,-apple-system,"Helvetica Neue",Arial,sans-serif;background:#f5f4f0;color:#1d1d1b}
+.entete{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;padding:16px;border-bottom:1px solid var(--trait);background:#fff}
+.entete p{margin:0;max-width:52ch;color:var(--texte)}
+.entete button{font:inherit;font-weight:700;border:0;border-radius:12px;padding:12px 18px;background:#1d1d1b;color:#fff;cursor:pointer}
+.planche{display:grid;grid-template-columns:repeat(auto-fill,minmax(15rem,1fr));gap:1rem;padding:16px}
+.chevalet{background:var(--noir);color:var(--blanc);border-radius:14px;padding:22px 18px;display:flex;flex-direction:column;align-items:center;gap:12px;text-align:center}
+.chevalet .logo{width:96px;height:auto}
+.chevalet .num{font-size:12px;letter-spacing:.3em;text-transform:uppercase}
+.chevalet .num b{display:block;font-size:46px;letter-spacing:0;line-height:1;margin-top:4px;font-weight:500}
+.chevalet .code{background:#fff;padding:12px;border-radius:10px;width:62%}
+.chevalet .code svg{display:block;width:100%;height:auto}
+.chevalet p{margin:0;font-size:13px;letter-spacing:.08em}
+@page{size:A4;margin:0}
+@media print{
+  body{background:#fff}
+  .entete{display:none}
+  .planche{grid-template-columns:105mm 105mm;grid-auto-rows:148.5mm;gap:0;padding:0}
+  .chevalet{border-radius:0;justify-content:center;break-inside:avoid;-webkit-print-color-adjust:exact;print-color-adjust:exact;border:.2mm dashed #888}
+}
+</style>
+</head>
+<body>
+<header class="entete">
+  <p>Un QR par table, 4 par page A4, à poser sur la bonne table. Chaque QR ne marche que pour sa table. Les commandes n’arrivent que pendant une soirée ouverte.</p>
+  <button type="button" id="imprimer">Imprimer</button>
+</header>
+<main class="planche" id="planche"></main>
+<script>
+(function () {
+  var qr = <?!= qrJson ?>, logo = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9Ii0yMzguMyAtNDE3LjEgMzE4NC44IDE4NDguMSIgd2lkdGg9IjMxODQuOCIgaGVpZ2h0PSIxODQ4LjEiPgo8dGl0bGU+WcOkeWEgTG91bmdlPC90aXRsZT4KPGcgZmlsbD0iI2YyZjFlZSI+CiAgPHBhdGggZD0iTTI0MC42IDcwMFY0MTZMMjczLjcgNTEwLjRMLTEyLjMgMEgxNDEuN0wzNjIuNCAzOTUuMkgyNzQuNkw0OTYuNiAwSDYzOC40TDM1MyA1MTAuNEwzODUuNSA0MTZWNzAwWiIvPgogIDxwYXRoIGQ9Ik02MzIgNzAwIDkyMi43IDBIMTA2NS43TDEzNTcgNzAwSDEyMDUuOUw5NjQuNSA3OS44SDEwMjJMNzgwLjcgNzAwWk03NzUuNiA1NDcuOCA4MTMuNyA0MjlIMTE1Mi4yTDExOTAuOSA1NDcuOFoiLz4KICA8cGF0aCBkPSJNMTYwNCA3MDBWNDE2TDE2MzcuMiA1MTAuNEwxMzUxLjIgMEgxNTA1LjJMMTcyNS45IDM5NS4ySDE2MzguMUwxODYwLjEgMEgyMDAxLjlMMTcxNi41IDUxMC40TDE3NDkgNDE2VjcwMFoiLz4KICA8cGF0aCBkPSJNMTk5NS41IDcwMCAyMjg2LjIgMEgyNDI5LjJMMjcyMC41IDcwMEgyNTY5LjRMMjMyOCA3OS44SDIzODUuNUwyMTQ0LjEgNzAwWk0yMTM5LjEgNTQ3LjggMjE3Ny4yIDQyOUgyNTE1LjdMMjU1NC40IDU0Ny44WiIvPgogIDxjaXJjbGUgY3g9IjkwMS4xIiBjeT0iLTExMi42IiByPSI3OC41Ii8+CiAgPGNpcmNsZSBjeD0iMTA4OCIgY3k9Ii0xMTIuNiIgcj0iNzguNSIvPgogIDxyZWN0IHg9Ii0xMi4zIiB5PSI4NTAiIHdpZHRoPSIyNzMyLjgiIGhlaWdodD0iMzAiLz4KICA8cGF0aCBkPSJNNjE5LjggMTIwM1YxMDAwSDY2NVYxMTY1LjlINzY3LjVWMTIwM1pNOTM1LjkgMTIwNi4zUTkxMiAxMjA2LjMgODkxLjcgMTE5OC41UTg3MS40IDExOTAuNiA4NTYuNSAxMTc2LjVRODQxLjYgMTE2Mi4zIDgzMy4zIDExNDMuMlE4MjUuMSAxMTI0LjEgODI1LjEgMTEwMS41UTgyNS4xIDEwNzguOCA4MzMuMyAxMDU5LjhRODQxLjYgMTA0MC43IDg1Ni41IDEwMjYuNVE4NzEuNCAxMDEyLjMgODkxLjcgMTAwNC41UTkxMS45IDk5Ni43IDkzNS44IDk5Ni43UTk1OS44IDk5Ni43IDk3OS45IDEwMDQuNVExMDAwLjEgMTAxMi4yIDEwMTQuOSAxMDI2LjRRMTAyOS44IDEwNDAuNSAxMDM4LjEgMTA1OS42UTEwNDYuNCAxMDc4LjcgMTA0Ni40IDExMDEuNVExMDQ2LjQgMTEyNC4yIDEwMzguMSAxMTQzLjRRMTAyOS44IDExNjIuNSAxMDE0LjkgMTE3Ni42UTEwMDAuMSAxMTkwLjggOTc5LjkgMTE5OC41UTk1OS44IDEyMDYuMyA5MzUuOSAxMjA2LjNaTTkzNS44IDExNjcuOVE5NDkuOCAxMTY3LjkgOTYxLjYgMTE2M1E5NzMuNCAxMTU4LjIgOTgyLjIgMTE0OS4zUTk5MC45IDExNDAuNCA5OTUuOSAxMTI4LjNRMTAwMC44IDExMTYuMSAxMDAwLjggMTEwMS40UTEwMDAuOCAxMDg2LjggOTk1LjkgMTA3NC43UTk5MSAxMDYyLjYgOTgyLjIgMTA1My43UTk3My40IDEwNDQuOCA5NjEuNiAxMDQwUTk0OS44IDEwMzUuMSA5MzUuOCAxMDM1LjFROTIxLjkgMTAzNS4xIDkxMCAxMDQwUTg5OC4xIDEwNDQuOCA4ODkuMyAxMDUzLjdRODgwLjUgMTA2Mi42IDg3NS42IDEwNzQuN1E4NzAuNyAxMDg2LjggODcwLjcgMTEwMS40UTg3MC43IDExMTYuMSA4NzUuNiAxMTI4LjJRODgwLjUgMTE0MC40IDg4OS4zIDExNDkuM1E4OTguMSAxMTU4LjIgOTEwIDExNjMuMVE5MjEuOCAxMTY3LjkgOTM1LjggMTE2Ny45Wk0xMjE1LjYgMTIwNi4zUTExNzIuOCAxMjA2LjMgMTE0OC42IDExODIuNFExMTI0LjQgMTE1OC41IDExMjQuNCAxMTEzLjdWMTAwMEgxMTY5LjZWMTExMi4zUTExNjkuNiAxMTQxLjYgMTE4MS44IDExNTQuN1ExMTk0IDExNjcuOSAxMjE2IDExNjcuOVExMjM4LjEgMTE2Ny45IDEyNTAuMyAxMTU0LjdRMTI2Mi41IDExNDEuNiAxMjYyLjUgMTExMi4zVjEwMDBIMTMwNi45VjExMTMuN1ExMzA2LjkgMTE1OC41IDEyODIuNyAxMTgyLjRRMTI1OC41IDEyMDYuMyAxMjE1LjYgMTIwNi4zWk0xMzk4LjEgMTIwM1YxMDAwSDE0MzUuM0wxNTU2LjcgMTE0OC4zSDE1MzguNlYxMDAwSDE1ODMuMlYxMjAzSDE1NDZMMTQyNC42IDEwNTQuN0gxNDQyLjdWMTIwM1pNMTc3My41IDEyMDYuM1ExNzQ5LjYgMTIwNi4zIDE3MjkuNSAxMTk4LjZRMTcwOS4zIDExOTAuOSAxNjk0LjUgMTE3Ni44UTE2NzkuNiAxMTYyLjcgMTY3MS40IDExNDMuNlExNjYzLjIgMTEyNC40IDE2NjMuMiAxMTAxLjVRMTY2My4yIDEwNzguNiAxNjcxLjQgMTA1OS40UTE2NzkuNiAxMDQwLjMgMTY5NC42IDEwMjYuMlExNzA5LjYgMTAxMi4xIDE3MjkuOCAxMDA0LjRRMTc1MC4xIDk5Ni43IDE3NzQuNCA5OTYuN1ExODAxLjEgOTk2LjcgMTgyMi42IDEwMDUuNVExODQ0IDEwMTQuMyAxODU4LjYgMTAzMS4zTDE4MjkuOSAxMDU4LjJRMTgxOC42IDEwNDYuNCAxODA1LjQgMTA0MC44UTE3OTIuMyAxMDM1LjEgMTc3Ni41IDEwMzUuMVExNzYxLjYgMTAzNS4xIDE3NDkuMSAxMDM5LjlRMTczNi43IDEwNDQuOCAxNzI3LjYgMTA1My42UTE3MTguNiAxMDYyLjUgMTcxMy43IDEwNzQuNlExNzA4LjggMTA4Ni44IDE3MDguOCAxMTAxLjVRMTcwOC44IDExMTUuOSAxNzEzLjcgMTEyOFExNzE4LjYgMTE0MC4yIDE3MjcuNiAxMTQ5LjJRMTczNi43IDExNTguMSAxNzQ4LjkgMTE2M1ExNzYxLjIgMTE2Ny45IDE3NzYgMTE2Ny45UTE3OTAuMyAxMTY3LjkgMTgwMy42IDExNjMuM1ExODE2LjkgMTE1OC43IDE4MjkuNiAxMTQ3LjhMMTg1NS4xIDExODAuNVExODM4LjYgMTE5My4yIDE4MTcgMTE5OS43UTE3OTUuMyAxMjA2LjMgMTc3My41IDEyMDYuM1pNMTg1NS4xIDExODAuNSAxODEzLjcgMTE3NC43VjEwOTguNUgxODU1LjFaTTE5NDMuMyAxMjAzVjEwMDBIMjA5NS42VjEwMzYuNkgxOTg4LjFWMTE2Ni40SDIwOTkuNVYxMjAzWk0xOTg0LjggMTExNy43VjEwODIuM0gyMDgzLjNWMTExNy43WiIvPgo8L2c+Cjwvc3ZnPgo=';
+  var planche = document.getElementById('planche');
+  qr.forEach(function (t) {
+    var c = document.createElement('article'); c.className = 'chevalet';
+    var img = document.createElement('img'); img.className = 'logo'; img.alt = 'Yäya Lounge'; img.src = logo;
+    var num = document.createElement('div'); num.className = 'num'; num.textContent = 'Table';
+    var b = document.createElement('b'); b.textContent = t.t; num.appendChild(b);
+    var code = document.createElement('div'); code.className = 'code';
+    var svg = new DOMParser().parseFromString(t.svg, 'image/svg+xml').documentElement;
+    if (svg.nodeName === 'svg') code.appendChild(document.importNode(svg, true));
+    var p = document.createElement('p'); p.textContent = 'Scannez pour commander';
+    c.appendChild(img); c.appendChild(num); c.appendChild(code); c.appendChild(p);
+    planche.appendChild(c);
+  });
+  document.getElementById('imprimer').onclick = function () { window.print(); };
+})();
+</script>
+</body>
+</html>

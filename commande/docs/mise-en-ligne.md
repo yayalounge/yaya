@@ -1,60 +1,45 @@
-# Mise en ligne (une fois, environ 15 minutes)
+# Mise en ligne
 
-Tout tourne sur le compte Netlify **du gérant**. Kerro Labs n'héberge rien : la plateforme fidélité ne fait que
-fournir la carte (onglet Menu de l'espace fidélité).
+Tout se fait sur le compte Google et le GitHub du gérant. Rien chez Kerro Labs.
 
-## 1. Netlify (le gérant)
+## 1. Son appli YÄYA (Apps Script)
 
-1. Créer un compte gratuit sur netlify.com avec l'adresse du salon, puis **Add new project › Import an existing project › GitHub**,
-   autoriser Netlify sur le dépôt `yayalounge/yaya`.
-2. Réglages de construction :
-   - **Base directory** : `commande`
-   - le reste est lu dans `commande/netlify.toml` (publication `public`, fonctions `netlify/functions`, tests lancés à chaque mise en ligne).
-3. **Project configuration › Environment variables**, ajouter (portée : Builds et Functions) :
+1. Ouvrir le projet Apps Script « YÄYA » (Google Sheets « YÄYA Commandes » › Extensions › Apps Script).
+2. **Sauvegarde** : Fichier › Créer une copie du projet, ou copier `Code.gs` quelque part. Vérifier que son `Code.gs`
+   en ligne est bien celui de `apps-script/Code.origine.gs` (sinon : le recopier, `npm run brancher`, relancer les tests).
+3. Remplacer le contenu de `Code.gs` par `apps-script/Code.gs`.
+4. Ajouter quatre fichiers (bouton +) avec exactement ces noms :
+   - Script `CommandeTable` ← `apps-script/CommandeTable.gs`
+   - Script `QrCode` ← `apps-script/QrCode.gs`
+   - HTML `CommandeTableUi` ← `apps-script/CommandeTableUi.html`
+   - HTML `CommandeTableQr` ← `apps-script/CommandeTableQr.html`
+5. Déployer › **Gérer les déploiements** › crayon sur le déploiement **existant** › Version : Nouvelle version ›
+   Déployer. Ne pas créer un nouveau déploiement : l'adresse `/exec` (et donc les liens Service et Gérant) ne change pas.
+6. Dans ce même écran, vérifier « Qui peut accéder : **Tout le monde** ». Sinon le téléphone des clients ne peut pas
+   envoyer de commande. Sans la clé `k`, cette adresse ne donne toujours accès qu'à la carte, la commande et le suivi.
 
-| Variable | Valeur | À quoi ça sert |
-| --- | --- | --- |
-| `YAYA_SECRET` | 48 caractères au hasard (générateur de mots de passe), **jamais partagé** | Signe les QR des tables et la session de la cuisine |
-| `COMPTOIR_CODE` | 6 à 12 chiffres, connus de l'équipe seulement | Code de l'écran de la cuisine |
-| `TABLES_VERSION` | facultatif, `1` par défaut | Le passer à `2` rend tous les QR imprimés invalides (QR recopiés, abus) : il faut alors réimprimer |
+Retour arrière : Gérer les déploiements › remettre la version précédente. Les commandes QR en attente disparaissent
+de l'écran, le reste de l'appli est intact.
 
-4. **Deploys › Trigger deploy**. Si un test échoue, la mise en ligne s'arrête et l'ancienne version reste en place.
+## 2. La page client (GitHub Pages)
 
-## 2. Adresse commande.yaya-lounge.fr (Moussa, chez OVH)
+1. Sur le GitHub `yayalounge`, créer un dépôt public vide `commande`.
+2. Y pousser le contenu de `commande/site/` (avec `CNAME` et `.nojekyll`).
+3. Dépôt › Settings › Pages : Source « Deploy from a branch », `main`, `/ (root)`.
+4. Chez OVH (zone DNS de `yaya-lounge.fr`) : `CNAME` `commande` → `yayalounge.github.io.`
+5. Une fois le certificat prêt (quelques minutes) : Settings › Pages › cocher **Enforce HTTPS**.
 
-1. Netlify › **Domain management › Add a domain** › `commande.yaya-lounge.fr`.
-2. OVH › zone DNS de `yaya-lounge.fr` › ajouter un **CNAME** `commande` → `<nom-du-projet>.netlify.app.` (le nom exact est affiché par Netlify).
-3. Netlify pose le certificat HTTPS tout seul (quelques minutes). Ne rien toucher aux autres lignes de la zone (site, e-mails).
+Si l'adresse `/exec` changeait un jour, mettre la nouvelle dans `site/index.html` (balise `yaya-api`).
 
-## 3. iPad de la cuisine
+## 3. Les QR
 
-1. Safari › `https://commande.yaya-lounge.fr/cuisine/` › entrer le code.
-2. Partager › **Sur l'écran d'accueil** : l'icône « Cuisine » s'ouvre en plein écran.
-3. Chaque soir : ouvrir l'icône, toucher **Démarrer le service** (active le son et garde l'écran allumé). Volume de l'iPad monté,
-   mode silencieux coupé. **Tester le son** est dans le menu « ••• ».
-4. Laisser l'iPad branché : l'écran reste allumé tant que la page est ouverte.
+Gérant › bouton **QR des tables** (en haut) › imprimer (4 cartes A6 par page A4). Chaque QR mène à
+`https://commande.yaya-lounge.fr/?t=<table>&k=<signature>`. Les tables viennent de l'onglet du plan.
 
-## 4. QR des tables
+## 4. Essai le premier soir
 
-Écran de la cuisine › « ••• » › **QR codes des tables** › Imprimer (A4, 4 chevalets par page, format A6). Coller ou poser chaque
-QR sur **sa** table : un QR ne marche que pour son numéro. Avant de tout poser, faire une soirée d'essai avec 2 ou 3 tables.
-
-## 5. Au quotidien
-
-- **La carte** se change dans l'espace fidélité (onglet Menu). « Masqué (rupture) » retire aussi le produit de la commande, en moins d'une minute.
-- **Pause** (en haut de l'écran) : plus aucune commande par téléphone, le client voit « Commandez au comptoir ».
-- **Hors horaires** (17 h à 2 h, `config.json › horaires`) : les commandes sont refusées.
-- **Valider** une commande : la cuisine la prend, le client voit « Acceptée ». **Refuser** (deux appuis) : le client voit « voyez le comptoir ».
-- **Servie** puis **Encaisser** (deux appuis) quand la table a payé au comptoir.
-
-## Ce qui protège le système
-
-- QR signé : impossible d'inventer une table ou de deviner le lien d'une autre sans `YAYA_SECRET`.
-- Prix toujours recalculés par le serveur à partir de la carte : le téléphone ne peut pas changer un prix.
-- Au plus 3 commandes en attente par table, 1 commande toutes les 30 s par téléphone, 60 par heure par réseau, 30 articles et 300 € par commande.
-- Commandes refusées hors horaires et en pause ; toute commande passe par la validation de la cuisine.
-- Écran de la cuisine : code obligatoire, 8 essais par quart d'heure, session de 16 h dans un cookie protégé (HttpOnly, Secure, SameSite=Strict).
-- Requêtes acceptées seulement depuis le site lui-même (origine vérifiée, JSON obligatoire, 16 Ko au plus).
-- Aucune donnée personnelle demandée au client. Les commandes sont gardées 90 jours (Netlify Blobs, Europe), puis effacées.
-- Si la carte Kerro ne répond pas, la dernière carte connue sert ; sans carte connue, la page dit de commander au comptoir.
-- Aucun secret dans le dépôt : tout est dans les variables Netlify.
+1. Un serveur prend son service dans YÄYA Service.
+2. Scanner le QR d'une table, commander un soft : la commande sonne en haut de Service.
+3. Valider : la table s'ouvre, le ticket part dans « À préparer ». Le téléphone affiche « Acceptée ».
+4. Encaisser comme d'habitude : la vente apparaît dans l'onglet Ventes.
+5. « Mettre les QR en pause » : le téléphone passe en lecture seule. Reprendre.

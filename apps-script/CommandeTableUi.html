@@ -1,0 +1,83 @@
+<!-- YÄYA · commande à table : panneau « À valider » ajouté à YÄYA Service et YÄYA Gérant (voir CommandeTable.gs).
+     Il réutilise l'appli telle quelle : état (ST), envoi (act), son (beep), messages (toast). -->
+<style>
+.webq{flex:none;padding:10px 16px 2px;display:flex;flex-direction:column;gap:8px;max-height:46vh;overflow-y:auto;border-bottom:1px solid var(--line);background:var(--bg)}
+.webq-h{display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:13px;color:var(--muted)}
+.webq-h b{font-family:var(--display,inherit);font-size:17px;color:var(--fg);font-weight:600}
+.webq-c{background:var(--surface);border:1px solid var(--line);border-left:4px solid var(--gold);border-radius:14px;padding:11px 12px;display:grid;grid-template-columns:1fr auto;gap:8px 12px;align-items:center;animation:webqIn .35s ease}
+.webq-c.late{border-left-color:var(--warn)}
+.webq-c h3{margin:0;font-size:17px;color:var(--fg);display:flex;gap:8px;align-items:baseline;flex-wrap:wrap}
+.webq-c h3 small{font-size:12.5px;color:var(--muted);font-weight:600}
+.webq-c ul{grid-column:1/-1;margin:0;padding:0;list-style:none;font-size:14.5px;line-height:1.45}
+.webq-c li small{display:block;color:var(--muted);font-size:12.5px}
+.webq-c .tot{font-weight:700;font-variant-numeric:tabular-nums}
+.webq-a{grid-column:1/-1;display:grid;grid-template-columns:1fr 2fr;gap:8px}
+.webq-a button{padding:11px 10px}
+.webq-p{font-size:12.5px;padding:6px 10px;border-radius:99px;border:1px solid var(--line);background:var(--surface);color:var(--muted);font-weight:700}
+.webq-p.on{background:var(--warn);border-color:var(--warn);color:#fff}
+@keyframes webqIn{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}
+</style>
+<script>
+(function () {
+  const box = document.createElement('section');
+  box.className = 'webq'; box.id = 'webq'; box.hidden = true; box.setAttribute('aria-label', 'Commandes des tables à valider');
+  const app = document.querySelector('.app'), view = document.getElementById('view');
+  if (app && view) app.insertBefore(box, view);
+  const vus = new Set();
+  let premier = true, arme = null, armeT = null, rappel = 0;
+  const attente = () => (ST.web || []).filter(o => o.statut === 'nouvelle').sort((a, b) => a.ts - b.ts);
+  // Visible quand l'appli est ouverte sur le service (pas sur l'écran du code ou de prise de service).
+  const visible = () => ROLE === 'gerant' || !document.getElementById('tabs').hidden;
+
+  function dessiner() {
+    const l = attente();
+    const neuves = l.filter(o => !vus.has(o.id));
+    if (neuves.length && !premier) { try { beep(); } catch (e) {} toast('Nouvelle commande · Table ' + neuves.map(o => o.t).join(', ')); rappel = Date.now(); }
+    l.forEach(o => vus.add(o.id));
+    premier = false;
+    const pause = !!ST.webPause;
+    box.hidden = !visible() || (!l.length && !pause);
+    if (box.hidden) return;
+    box.innerHTML = `<div class="webq-h"><span><b>Commandes des tables</b> · ${l.length ? l.length + ' à valider' : 'aucune en attente'}</span>
+      <button class="webq-p ${pause ? 'on' : ''}" data-w="pause">${pause ? 'QR en pause · reprendre' : 'Mettre les QR en pause'}</button></div>` +
+      l.map(o => {
+        const m = mins(o.ts);
+        return `<article class="webq-c ${m >= 5 ? 'late' : ''}"><h3>Table ${o.t} <small>n° ${o.num} · ${ago(o.ts)}</small></h3><span class="tot">${fmt(o.total)}</span>
+        <ul>${o.lines.map(x => `<li>${x.q}× ${esc(x.n)}${x.d && x.d.length ? `<small>${x.d.map(esc).join(' · ')}</small>` : ''}</li>`).join('')}</ul>
+        <div class="webq-a"><button class="ghost danger ${arme === o.id ? 'armed' : ''}" data-w="no" data-id="${o.id}">${arme === o.id ? 'Confirmer' : 'Refuser'}</button>
+        <button class="primary" data-w="ok" data-id="${o.id}">Valider · envoyer en préparation</button></div></article>`;
+      }).join('');
+  }
+
+  box.addEventListener('click', async (e) => {
+    const b = e.target.closest('[data-w]');
+    if (!b) return;
+    const w = b.dataset.w, id = b.dataset.id;
+    if (w === 'no' && arme !== id) { arme = id; clearTimeout(armeT); armeT = setTimeout(() => { arme = null; dessiner(); }, 3500); dessiner(); return; }
+    arme = null;
+    b.disabled = true;
+    if (w === 'ok') await act('webOk', { id });
+    if (w === 'no') await act('webNo', { id });
+    if (w === 'pause') await act('webPause', { on: !ST.webPause });
+    render();
+  });
+
+  // Chaque état reçu (relecture toutes les 8 s, ou après une action) redessine le panneau.
+  const setST0 = setST;
+  setST = function (s) { setST0(s); try { dessiner(); } catch (e) {} };
+  const render0 = render;
+  render = function () { render0.apply(this, arguments); try { dessiner(); } catch (e) {} };
+  // Salle bruyante : on resonne toutes les 30 s tant qu'une commande attend.
+  setInterval(() => { if (attente().length && visible() && Date.now() - rappel > 30000) { rappel = Date.now(); try { beep(); } catch (e) {} } dessiner(); }, 15000);
+
+  // Gérant : lien vers les QR à imprimer, à côté d'« Analyses ».
+  if (ROLE === 'gerant' && BOOT.ana) {
+    const a = document.createElement('a');
+    a.className = 'msgbtn'; a.target = '_blank'; a.rel = 'noopener'; a.textContent = 'QR des tables';
+    a.href = BOOT.ana.replace('app=analyses', 'app=qr');
+    const r = document.querySelector('.topr');
+    if (r) r.insertBefore(a, r.firstChild);
+  }
+  dessiner();
+})();
+</script>
